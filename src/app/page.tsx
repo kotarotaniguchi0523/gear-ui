@@ -20,6 +20,7 @@ import {
   Square,
   Maximize2,
   Minimize2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
@@ -33,7 +34,7 @@ import { ScreenDefinitionView } from "@/components/screen-definition-view";
 import { SettingsDialog } from "@/components/settings-dialog";
 import { DesignRulesDialog } from "@/components/design-rules-dialog";
 import { ProjectSidebar } from "@/components/project-sidebar";
-import { downloadMarkdown, downloadXlsx } from "@/lib/export/download";
+import { downloadMarkdown, downloadXlsx, downloadMocksZip } from "@/lib/export/download";
 import { buildPreviewSrcDoc, MOCK_PREVIEW_MIN_WIDTH } from "@/lib/preview";
 import { useApiKey } from "@/hooks/use-api-key";
 import { useProjects } from "@/hooks/use-projects";
@@ -257,6 +258,7 @@ export default function Page() {
   const defs = gen.defs;
   const selectedScreen = gen.selectedScreen;
   const mockGenerating = gen.mocking || gen.bulkProgress !== null;
+  const hasMocks = Object.keys(gen.mocks).length > 0;
 
   return (
     <div className="h-screen flex flex-col bg-slate-100">
@@ -603,6 +605,23 @@ export default function Page() {
             subtitle="デザイントークン縛りで生成"
             headerExtra={
               <div className="flex items-center gap-1">
+                {defs && hasMocks && (
+                  <button
+                    onClick={() =>
+                      downloadMocksZip(
+                        defs,
+                        gen.mocks,
+                        color,
+                        activeProject?.name || "画面モック"
+                      )
+                    }
+                    disabled={mockGenerating}
+                    className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded disabled:opacity-50"
+                    title="生成済みのHTMLモックを ZIP でダウンロード"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {gen.currentMockHtml && (
                   <button
                     onClick={gen.generateMock}

@@ -3,6 +3,7 @@ import type { ScreenDefinitionSet } from "@/lib/schemas";
 import { screenSetToMarkdown, screenToMarkdown } from "@/lib/export/markdown";
 import { screenSetToSheets, screenSetToXlsx } from "@/lib/export/xlsx";
 import { buildZip } from "@/lib/export/zip";
+import { buildMocksZip } from "@/lib/export/mock-zip";
 
 const sampleSet: ScreenDefinitionSet = {
   screens: [
@@ -104,6 +105,37 @@ describe("screenSetToXlsx", () => {
     // 末尾は end-of-central-directory signature "PK\x05\x06"
     const tail = bytes.slice(bytes.length - 22, bytes.length - 18);
     expect([tail[0], tail[1], tail[2], tail[3]]).toEqual([0x50, 0x4b, 0x05, 0x06]);
+  });
+});
+
+describe("buildMocksZip", () => {
+  const mocks = {
+    "SCR-001": '<html><head><link href="/tokens"></head><body>一覧</body></html>',
+    "SCR-002": '<html><head><link href="/tokens.css"></head><body>詳細</body></html>',
+  };
+  // store 方式なのでファイル名・本文はZIP内に素のバイトで載る。全体を復号して検査する。
+  const dump = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+
+  it("emits one html file per generated mock plus a shared tokens.css", () => {
+    const text = dump(buildMocksZip(sampleSet, mocks, "/* css */"));
+    expect(text).toContain("SCR-001_タスク一覧.html");
+    expect(text).toContain("SCR-002_タスク詳細.html");
+    expect(text).toContain("tokens.css");
+    expect(text).toContain("/* css */");
+  });
+
+  it("rewrites the tokens link to the bundled relative path", () => {
+    const text = dump(buildMocksZip(sampleSet, mocks, ""));
+    expect(text).toContain('href="tokens.css"');
+    expect(text).not.toContain('href="/tokens"');
+    expect(text).not.toContain('href="/tokens.css"');
+  });
+
+  it("skips screens that have no generated mock", () => {
+    // SCR-001 のみ生成済み
+    const text = dump(buildMocksZip(sampleSet, { "SCR-001": mocks["SCR-001"] }, ""));
+    expect(text).toContain("SCR-001_タスク一覧.html");
+    expect(text).not.toContain("SCR-002");
   });
 });
 
