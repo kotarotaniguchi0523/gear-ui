@@ -6,7 +6,7 @@
 
 セキュリティ上の問題を見つけた場合は、**公開 Issue を作成せず**、メールでご連絡ください:
 
-- **kkuma6653@gmail.com**
+- **gi-support@lance-digital.com**
 
 可能であれば、再現手順・影響範囲・想定される攻撃シナリオを添えてください。
 できるだけ早く確認し、対応方針をご返信します。
@@ -31,7 +31,7 @@
 If you discover a security issue, **please do not open a public issue.**
 Instead, email us:
 
-- **kkuma6653@gmail.com**
+- **gi-support@lance-digital.com**
 
 Where possible, include reproduction steps, impact, and a likely attack scenario.
 We will acknowledge and respond with a remediation plan as soon as we can.
