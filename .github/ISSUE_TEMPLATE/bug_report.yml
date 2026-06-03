@@ -1,0 +1,53 @@
+name: Bug report / バグ報告
+description: 不具合を報告する / Report something that isn't working
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご報告ありがとうございます！ / Thanks for reporting!
+        セキュリティ脆弱性は Issue ではなく [SECURITY.md](../blob/main/SECURITY.md) の手順で報告してください。
+        Please report security vulnerabilities via SECURITY.md, not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 概要 / What happened?
+      description: 何が起きたか、何を期待していたかを説明してください / Describe the bug and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現手順 / Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: 利用プロバイダ・モデル / LLM provider & model
+      placeholder: "例: anthropic / claude-sonnet-4-5"
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: 環境 / Environment
+      description: OS, Node.js のバージョン, ブラウザなど / OS, Node.js version, browser, etc.
+      placeholder: |
+        - OS:
+        - Node.js: (node -v)
+        - Browser:
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ / Logs
+      description: 関連するコンソール・サーバーログ（APIキーは絶対に貼らないでください） / Relevant logs (never paste your API key).
+      render: shell
+    validations:
+      required: false
