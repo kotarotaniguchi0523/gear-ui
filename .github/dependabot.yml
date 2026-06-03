@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # npm 依存パッケージの更新 PR を毎週作成
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # マイナー/パッチはまとめて1つの PR に
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions（ci.yml の actions/* など）のバージョン更新
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

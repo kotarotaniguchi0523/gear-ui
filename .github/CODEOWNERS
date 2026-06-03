@@ -1,0 +1,6 @@
+# Code owners for gear-ui
+# これらのオーナーは、対象ファイルを変更する PR に自動でレビュアーとして追加されます。
+# https://docs.github.com/articles/about-code-owners
+
+# 全ファイルのデフォルトオーナー
+*       @Kumaiu
