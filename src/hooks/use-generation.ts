@@ -394,6 +394,7 @@ export function useGeneration(deps: GenerationDeps) {
     mocking,
     mockError,
     bulkProgress,
+    mocks: mockCache,
     currentMockHtml,
     currentMockStale,
     previewHtml,
