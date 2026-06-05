@@ -18,6 +18,15 @@ export function stripCodeFence(text: string): string {
   return text.replace(/^```(?:html)?\s*\n?/i, "").replace(/```\s*$/i, "");
 }
 
+// ストリーミング途中の文字列が「HTML文書の書き出し」かを判定する。
+// モック編集に修正指示ではなく質問・雑談が来ると、LLM は会話文を返す。それを
+// プレビューへ描画しないよう、描画開始を「HTMLらしさが確定してから」に遅らせる。
+// 受信途中なので終端 </html> は待たず、先頭が <!doctype html / <html かだけを見る。
+export function looksLikeHtmlStart(text: string): boolean {
+  const head = text.trimStart().slice(0, 64).toLowerCase();
+  return head.startsWith("<!doctype html") || head.startsWith("<html");
+}
+
 // モックは静的プレビューなので、リンククリックやフォーム送信で iframe が遷移すると
 // プレビューが消えてしまう。キャプチャ段階でそれらを抑止するスクリプトを注入する。
 // （iframe は allow-scripts のみ・top遷移は不可なので、無効化対象は iframe 内ナビのみ）

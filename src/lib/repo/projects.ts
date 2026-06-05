@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "@/lib/db";
 import type {
   ChatTurn,
+  DefinitionStaleMap,
   DesignRules,
   MockStaleMap,
   ScreenDefinitionSet,
@@ -17,6 +18,7 @@ export interface ProjectRow {
   design_rules_json: string | null;
   chat_json: string | null;
   mock_stale_json: string | null;
+  definition_stale_json: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -39,6 +41,7 @@ export interface Project {
   designRules: DesignRules | null;
   chat: ChatTurn[];
   mockStale: MockStaleMap;
+  definitionStale: DefinitionStaleMap;
   createdAt: number;
   updatedAt: number;
 }
@@ -60,6 +63,9 @@ function hydrate(row: ProjectRow): Project {
     chat: row.chat_json ? (JSON.parse(row.chat_json) as ChatTurn[]) : [],
     mockStale: row.mock_stale_json
       ? (JSON.parse(row.mock_stale_json) as MockStaleMap)
+      : {},
+    definitionStale: row.definition_stale_json
+      ? (JSON.parse(row.definition_stale_json) as DefinitionStaleMap)
       : {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -141,6 +147,7 @@ export interface ProjectPatch {
   designRules?: DesignRules | null;
   chat?: ChatTurn[];
   mockStale?: MockStaleMap;
+  definitionStale?: DefinitionStaleMap;
 }
 
 export function updateProject(id: string, patch: ProjectPatch): Project | null {
@@ -157,12 +164,15 @@ export function updateProject(id: string, patch: ProjectPatch): Project | null {
     ...(patch.designRules !== undefined ? { designRules: patch.designRules } : {}),
     ...(patch.chat !== undefined ? { chat: patch.chat } : {}),
     ...(patch.mockStale !== undefined ? { mockStale: patch.mockStale } : {}),
+    ...(patch.definitionStale !== undefined
+      ? { definitionStale: patch.definitionStale }
+      : {}),
     updatedAt: Date.now(),
   };
 
   db.prepare(
     `UPDATE projects
-     SET name = ?, requirement = ?, definitions_json = ?, mocks_json = ?, design_rules_json = ?, chat_json = ?, mock_stale_json = ?, updated_at = ?
+     SET name = ?, requirement = ?, definitions_json = ?, mocks_json = ?, design_rules_json = ?, chat_json = ?, mock_stale_json = ?, definition_stale_json = ?, updated_at = ?
      WHERE id = ?`
   ).run(
     next.name,
@@ -175,6 +185,9 @@ export function updateProject(id: string, patch: ProjectPatch): Project | null {
     next.chat.length > 0 ? JSON.stringify(next.chat) : null,
     Object.keys(next.mockStale).length > 0
       ? JSON.stringify(next.mockStale)
+      : null,
+    Object.keys(next.definitionStale).length > 0
+      ? JSON.stringify(next.definitionStale)
       : null,
     next.updatedAt,
     id
@@ -194,7 +207,10 @@ export function setMockForScreen(
   // モックを（再）生成したので、その画面の「古い」フラグは解除する。
   const mockStale = { ...existing.mockStale };
   delete mockStale[screenId];
-  return updateProject(projectId, { mocks, mockStale });
+  // 定義から作り直した＝定義とモックが一致するので、定義側のズレも解消する。
+  const definitionStale = { ...existing.definitionStale };
+  delete definitionStale[screenId];
+  return updateProject(projectId, { mocks, mockStale, definitionStale });
 }
 
 export function appendChatTurns(
@@ -216,7 +232,11 @@ export function appendChatTurns(
 export function computeDefinitionUpdate(
   existing: Project,
   newSet: ScreenDefinitionSet
-): { mocks: Record<string, string>; mockStale: MockStaleMap } {
+): {
+  mocks: Record<string, string>;
+  mockStale: MockStaleMap;
+  definitionStale: DefinitionStaleMap;
+} {
   const oldById = new Map(
     (existing.definitions?.screens ?? []).map((s) => [s.screenId, s])
   );
@@ -228,16 +248,21 @@ export function computeDefinitionUpdate(
   }
 
   const mockStale: MockStaleMap = {};
+  const definitionStale: DefinitionStaleMap = {};
   for (const s of newSet.screens) {
-    if (!mocks[s.screenId]) continue; // モックが無い画面はstale判定の対象外
     const old = oldById.get(s.screenId);
     const changed = !old || JSON.stringify(old) !== JSON.stringify(s);
-    if (changed || existing.mockStale[s.screenId]) {
-      mockStale[s.screenId] = true;
+    if (mocks[s.screenId] && (changed || existing.mockStale[s.screenId])) {
+      mockStale[s.screenId] = true; // モックが無い画面はstale判定の対象外
+    }
+    // 定義を編集した画面は、その定義が最新になるので「定義が古い」フラグを解除する。
+    // 触っていない画面の definitionStale はそのまま引き継ぐ。
+    if (existing.definitionStale[s.screenId] && !changed) {
+      definitionStale[s.screenId] = true;
     }
   }
 
-  return { mocks, mockStale };
+  return { mocks, mockStale, definitionStale };
 }
 
 export function deleteProject(id: string): boolean {

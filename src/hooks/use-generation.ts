@@ -5,12 +5,14 @@ import { consumeSse } from "@/lib/sse-client";
 import {
   LIVE_PREVIEW_INTERVAL_MS,
   isAbort,
+  looksLikeHtmlStart,
   stripCodeFence,
 } from "@/lib/preview";
 import type { Project } from "@/hooks/use-projects";
 import type {
   ChatTarget,
   ChatTurn,
+  DefinitionStaleMap,
   DesignRules,
   MockStaleMap,
   ScreenDefinition,
@@ -56,6 +58,8 @@ export function useGeneration(deps: GenerationDeps) {
   // チャット修正窓: 履歴・古いモック・入力状態・フォーカス対象の手動上書き。
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [mockStale, setMockStale] = useState<MockStaleMap>({});
+  // モックを直接編集して定義に未反映の画面（「定義に反映」ボタンを出す）。
+  const [definitionStale, setDefinitionStale] = useState<DefinitionStaleMap>({});
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -80,6 +84,9 @@ export function useGeneration(deps: GenerationDeps) {
     : null;
   const currentMockStale = selectedScreen
     ? !!mockStale[selectedScreen.screenId]
+    : false;
+  const currentDefinitionStale = selectedScreen
+    ? !!definitionStale[selectedScreen.screenId]
     : false;
   // フォーカス対象の自動振り分け: 選択画面にモックがあればモック、無ければ定義。
   // ユーザーが手動で切り替えた場合(focusOverride)はそれを優先する。
@@ -107,6 +114,7 @@ export function useGeneration(deps: GenerationDeps) {
     // 作り直すと従来のチャット履歴・古いモック判定は無効になるのでリセット
     setChat([]);
     setMockStale({});
+    setDefinitionStale({});
     setChatError(null);
     setFocusOverride(null);
     // 定義を作り直したら定義レビュー段階に戻るので、畳んでいたパネルを開く
@@ -181,10 +189,12 @@ export function useGeneration(deps: GenerationDeps) {
       delta: (d) => {
         acc += (d as { text: string }).text;
         if (!onDelta) return;
+        const stripped = stripCodeFence(acc);
+        if (!looksLikeHtmlStart(stripped)) return;
         const now = Date.now();
         if (now - lastPaint < LIVE_PREVIEW_INTERVAL_MS) return;
         lastPaint = now;
-        onDelta(stripCodeFence(acc));
+        onDelta(stripped);
       },
       done: (d) => {
         finalHtml = (d as { html: string }).html;
@@ -317,15 +327,20 @@ export function useGeneration(deps: GenerationDeps) {
           const td = d as { text?: string };
           if (target !== "mock" || td.text === undefined) return;
           acc += td.text;
+          const stripped = stripCodeFence(acc);
+          // 修正指示でなく会話文（質問への聞き返し等）が返った場合は描画しない。
+          // HTMLの書き出しが確定するまでは現在のモックを表示したままにする。
+          if (!looksLikeHtmlStart(stripped)) return;
           const now = Date.now();
           if (now - lastPaint < LIVE_PREVIEW_INTERVAL_MS) return;
           lastPaint = now;
-          setStreamingMockHtml(stripCodeFence(acc));
+          setStreamingMockHtml(stripped);
         },
         done: (d) => {
           const proj = d as Project;
           setChat(proj.chat ?? []);
           setMockStale(proj.mockStale ?? {});
+          setDefinitionStale(proj.definitionStale ?? {});
           setDefs(proj.definitions);
           setMockCache(proj.mocks ?? {});
           // 画面が削除されて選択インデックスが範囲外になったら先頭へ戻す
@@ -347,12 +362,85 @@ export function useGeneration(deps: GenerationDeps) {
     }
   }
 
+  // 「定義に反映」: 直接編集したモックの内容を、対象画面の定義へ逆同期する。
+  // チャット欄を経由せず、定義編集（target=definition / syncFromMock）を直接叩く。
+  async function syncDefinition() {
+    if (!deps.activeProjectId || !selectedScreen || chatBusy) return;
+    if (!currentMockHtml) {
+      setChatError("先にこの画面のモックを生成してください。");
+      return;
+    }
+    const screenId = selectedScreen.screenId;
+    const instruction = `「${selectedScreen.screenName}」のモックの内容に合わせて定義を更新`;
+
+    setChatBusy(true);
+    setChatError(null);
+    const optimistic: ChatTurn = {
+      id: `tmp-${Date.now()}`,
+      role: "user",
+      target: "definition",
+      text: instruction,
+      ts: Date.now(),
+      screenId,
+    };
+    setChat((prev) => [...prev, optimistic]);
+    const restore = () =>
+      setChat((prev) => prev.filter((t) => t.id !== optimistic.id));
+
+    try {
+      const res = await fetch("/api/chat/edit", {
+        method: "POST",
+        headers: buildHeaders({ stream: true }),
+        body: JSON.stringify({
+          projectId: deps.activeProjectId,
+          target: "definition",
+          instruction,
+          screenId,
+          syncFromMock: true,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setChatError(data.error ?? "定義の同期に失敗しました");
+        restore();
+        return;
+      }
+      await consumeSse(res, {
+        // definition編集は文字数のみで、プレビューへのライブ描画は無い。
+        delta: () => {},
+        done: (d) => {
+          const proj = d as Project;
+          setChat(proj.chat ?? []);
+          setMockStale(proj.mockStale ?? {});
+          setDefinitionStale(proj.definitionStale ?? {});
+          setDefs(proj.definitions);
+          setMockCache(proj.mocks ?? {});
+          const count = proj.definitions?.screens.length ?? 0;
+          setSelectedIndex((i) => (i >= count ? 0 : i));
+          deps.reloadProjects();
+        },
+        error: (d) => {
+          setChatError(
+            (d as { error?: string }).error ?? "定義の同期に失敗しました"
+          );
+          restore();
+        },
+      });
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Unknown error");
+      restore();
+    } finally {
+      setChatBusy(false);
+    }
+  }
+
   // プロジェクトを開いたときに、そのドキュメント状態を流し込む。
   const hydrate = useCallback((proj: Project) => {
     setDefs(proj.definitions);
     setMockCache(proj.mocks);
     setChat(proj.chat ?? []);
     setMockStale(proj.mockStale ?? {});
+    setDefinitionStale(proj.definitionStale ?? {});
     setSelectedIndex(0);
     setDefError(null);
     setMockError(null);
@@ -368,6 +456,7 @@ export function useGeneration(deps: GenerationDeps) {
     setSelectedIndex(0);
     setChat([]);
     setMockStale({});
+    setDefinitionStale({});
     setStreamingMockHtml(null);
     setDefError(null);
     setMockError(null);
@@ -384,6 +473,9 @@ export function useGeneration(deps: GenerationDeps) {
     selectScreen,
     selectedScreen,
     mockStale,
+    definitionStale,
+    currentDefinitionStale,
+    syncDefinition,
     // 定義生成
     defining,
     defProgress,

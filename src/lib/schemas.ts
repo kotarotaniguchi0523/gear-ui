@@ -118,11 +118,18 @@ export type ChatTurn = z.infer<typeof chatTurnSchema>;
 export const chatEditRequestSchema = z.object({
   projectId: z.string().uuid(),
   target: chatTargetEnum,
+  // 通常の修正指示。syncFromMock=true のときは未使用でよい（自動で同期指示を組む）。
   instruction: z.string().min(1).max(4000),
   // mock編集時は対象画面ID（必須）。definition編集はセット全体に作用する。
   screenId: z.string().optional(),
+  // target=definition のとき true なら、指定画面のモックHTMLに合わせて定義を逆同期する。
+  syncFromMock: z.boolean().optional(),
 });
 export type ChatEditRequest = z.infer<typeof chatEditRequestSchema>;
 
 // モックが古い（対応する定義が後から変わった）かどうかを画面IDごとに保持する。
 export type MockStaleMap = Record<string, boolean>;
+
+// 定義が古い（モックを直接編集して定義に未反映）かどうかを画面IDごとに保持する。
+// MockStaleMap と同型だが、意味（向き）が逆なので型エイリアスで意図を表す。
+export type DefinitionStaleMap = Record<string, boolean>;
