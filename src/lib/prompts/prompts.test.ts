@@ -5,6 +5,7 @@ import {
 } from "@/lib/prompts/screen-definition";
 import {
   SCREEN_MOCK_SYSTEM_PROMPT,
+  SCREEN_MOCK_EDIT_SYSTEM_PROMPT,
   buildScreenMockUserPrompt,
   buildDesignRulesBlock,
 } from "@/lib/prompts/screen-mock";
@@ -78,5 +79,15 @@ describe("system prompts", () => {
 
   it("mock prompt enforces the design-token guardrail", () => {
     expect(SCREEN_MOCK_SYSTEM_PROMPT).toContain("--color-primary");
+  });
+
+  it("mock edit prompt keeps the design-token guardrail", () => {
+    expect(SCREEN_MOCK_EDIT_SYSTEM_PROMPT).toContain("--color-primary");
+  });
+
+  it("mock edit prompt allows a plain-text reply for non-edit messages", () => {
+    // 質問・相談には再生成せずテキストで返す二択ルールを明示していること。
+    expect(SCREEN_MOCK_EDIT_SYSTEM_PROMPT).toContain("プレーンテキスト");
+    expect(SCREEN_MOCK_EDIT_SYSTEM_PROMPT).toContain("再生成もしない");
   });
 });

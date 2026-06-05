@@ -35,7 +35,8 @@ import { SettingsDialog } from "@/components/settings-dialog";
 import { DesignRulesDialog } from "@/components/design-rules-dialog";
 import { ProjectSidebar } from "@/components/project-sidebar";
 import { downloadMarkdown, downloadXlsx, downloadMocksZip } from "@/lib/export/download";
-import { buildPreviewSrcDoc, MOCK_PREVIEW_MIN_WIDTH } from "@/lib/preview";
+import { buildPreviewSrcDoc } from "@/lib/preview";
+import { MockPreviewFrame } from "@/components/mock-preview-frame";
 import { useApiKey } from "@/hooks/use-api-key";
 import { useProjects } from "@/hooks/use-projects";
 import { useGeneration } from "@/hooks/use-generation";
@@ -320,7 +321,7 @@ export default function Page() {
             {hasKey && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
           </button>
           <a
-            href="https://github.com"
+            href="https://github.com/lance-digital/gear-ui"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
@@ -591,6 +592,22 @@ export default function Page() {
                     ))}
                   </div>
                 </div>
+                {gen.currentDefinitionStale && (
+                  <div className="px-4 py-2 bg-sky-50 border-b border-sky-200 flex items-center gap-2 text-[11px] text-sky-800">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span className="flex-1">
+                      モックを直接編集しました。この定義はモックに追従していない可能性があります。
+                    </span>
+                    <button
+                      onClick={gen.syncDefinition}
+                      disabled={gen.chatBusy}
+                      className="px-2 py-0.5 bg-sky-600 text-white rounded text-[10px] font-semibold hover:bg-sky-700 disabled:opacity-50 inline-flex items-center gap-1"
+                    >
+                      {gen.chatBusy && <Loader2 className="w-3 h-3 animate-spin" />}
+                      定義に反映
+                    </button>
+                  </div>
+                )}
                 <div className="flex-1 min-h-0 overflow-auto p-4">
                   {selectedScreen && <ScreenDefinitionView screen={selectedScreen} />}
                 </div>
@@ -731,15 +748,9 @@ export default function Page() {
               )}
               <div className="flex-1 min-h-0 bg-slate-50 overflow-auto">
                 {themedSrcDoc ? (
-                  // パネル幅にモックを無理に押し込まず、デスクトップ相当の最小幅を
-                  // 確保して、狭いときは横スクロールで見せる（全画面ボタンで広げると収まる）。
-                  <iframe
-                    title="mock preview"
-                    srcDoc={themedSrcDoc}
-                    className="h-full bg-white block"
-                    style={{ width: "100%", minWidth: MOCK_PREVIEW_MIN_WIDTH }}
-                    sandbox="allow-scripts"
-                  />
+                  // 二重バッファで差し替え時のフルリロード（白フラッシュ）を防ぐ。
+                  // 狭いときはコンポーネント側の最小幅＋親の横スクロールで見せる。
+                  <MockPreviewFrame srcDoc={themedSrcDoc} />
                 ) : (
                   <EmptyState
                     icon={<Monitor className="w-10 h-10" />}

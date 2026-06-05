@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractHtml,
   extractJson,
+  looksLikeHtmlDocument,
   parseProvider,
   resolveModel,
 } from "@/lib/llm";
@@ -99,5 +100,27 @@ describe("extractHtml", () => {
   it("returns trimmed raw content when not fenced", () => {
     const raw = "  <span>plain</span>  ";
     expect(extractHtml(raw)).toBe("<span>plain</span>");
+  });
+});
+
+describe("looksLikeHtmlDocument", () => {
+  it("accepts a full <!DOCTYPE html> document", () => {
+    expect(
+      looksLikeHtmlDocument("<!DOCTYPE html><html><body>x</body></html>")
+    ).toBe(true);
+  });
+
+  it("accepts a document starting with <html>", () => {
+    expect(looksLikeHtmlDocument("<html lang=\"ja\"></html>")).toBe(true);
+  });
+
+  it("rejects a conversational clarification reply", () => {
+    const reply =
+      "申し訳ございませんが、ご質問の意図を正確に理解できませんでした。全ての画面もやれる？について…";
+    expect(looksLikeHtmlDocument(reply)).toBe(false);
+  });
+
+  it("rejects an HTML fragment without a closing </html>", () => {
+    expect(looksLikeHtmlDocument("<div>just a fragment</div>")).toBe(false);
   });
 });

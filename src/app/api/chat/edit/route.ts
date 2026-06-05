@@ -5,6 +5,7 @@ import {
   streamLlm,
   extractHtml,
   extractJson,
+  looksLikeHtmlDocument,
   MissingApiKeyError,
   type CallOptions,
 } from "@/lib/llm";
@@ -17,9 +18,10 @@ import {
 import {
   SCREEN_DEFINITION_SYSTEM_PROMPT,
 } from "@/lib/prompts/screen-definition";
-import { SCREEN_MOCK_SYSTEM_PROMPT } from "@/lib/prompts/screen-mock";
+import { SCREEN_MOCK_EDIT_SYSTEM_PROMPT } from "@/lib/prompts/screen-mock";
 import {
   buildDefinitionEditUserPrompt,
+  buildDefinitionSyncUserPrompt,
   buildMockEditUserPrompt,
 } from "@/lib/prompts/chat-edit";
 import {
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { projectId, target, instruction, screenId } = parsed.data;
+  const { projectId, target, instruction, screenId, syncFromMock } = parsed.data;
   const project = getProject(projectId);
   if (!project) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -112,15 +114,53 @@ export async function POST(request: NextRequest) {
   let finalize: (raw: string) => Finalized;
   let deltaKind: "length" | "text";
 
+  // target=definition で syncFromMock=true のときは「モック → 定義」の逆同期。
+  const isSync = target === "definition" && syncFromMock === true;
+
   if (target === "definition") {
     const definitions = project.definitions;
-    callOptions = {
-      apiKey,
-      system: SCREEN_DEFINITION_SYSTEM_PROMPT,
-      user: buildDefinitionEditUserPrompt(definitions, instruction),
-      maxTokens: 16000,
-      temperature: 0.3,
-    };
+
+    // 逆同期は対象画面とそのモックが前提。先に妥当性を確かめる。
+    let syncScreenName = "";
+    if (isSync) {
+      if (!screenId) {
+        return NextResponse.json(
+          { error: "定義の同期には対象画面が必要です。" },
+          { status: 400 }
+        );
+      }
+      const screen = definitions.screens.find((s) => s.screenId === screenId);
+      if (!screen) {
+        return NextResponse.json(
+          { error: "対象画面が定義に見つかりません。" },
+          { status: 404 }
+        );
+      }
+      const currentHtml = project.mocks[screenId];
+      if (!currentHtml) {
+        return NextResponse.json(
+          { error: "この画面のモックがまだありません。先にモックを生成してください。" },
+          { status: 409 }
+        );
+      }
+      syncScreenName = screen.screenName;
+      callOptions = {
+        apiKey,
+        system: SCREEN_DEFINITION_SYSTEM_PROMPT,
+        user: buildDefinitionSyncUserPrompt(definitions, screen, currentHtml),
+        maxTokens: 16000,
+        temperature: 0.3,
+      };
+    } else {
+      callOptions = {
+        apiKey,
+        system: SCREEN_DEFINITION_SYSTEM_PROMPT,
+        user: buildDefinitionEditUserPrompt(definitions, instruction),
+        maxTokens: 16000,
+        temperature: 0.3,
+      };
+    }
+
     deltaKind = "length";
     finalize = (raw) => {
       const json = extractJson(raw);
@@ -136,13 +176,31 @@ export async function POST(request: NextRequest) {
           },
         };
       }
-      const summary = summarizeDefinitionEdit(definitions, validated.data);
-      const { mocks, mockStale } = computeDefinitionUpdate(project, validated.data);
-      const assistantTurn = turn("assistant", "definition", summary);
+      const summary = isSync
+        ? `「${syncScreenName}」の定義をモックの内容に合わせて更新しました。`
+        : summarizeDefinitionEdit(definitions, validated.data);
+      const { mocks, mockStale, definitionStale } = computeDefinitionUpdate(
+        project,
+        validated.data
+      );
+      // 逆同期は「モックが正・定義をそれに合わせた」操作。定義変更で立ってしまう
+      // モック側のstaleは誤り（再生成を促すと無限ループになる）なので、対象画面の
+      // mockStale / definitionStale を両方クリアして「一致した」状態にする。
+      if (isSync && screenId) {
+        delete definitionStale[screenId];
+        delete mockStale[screenId];
+      }
+      const assistantTurn = turn(
+        "assistant",
+        "definition",
+        summary,
+        isSync && screenId ? { screenId } : undefined
+      );
       const updated = updateProject(projectId, {
         definitions: validated.data,
         mocks,
         mockStale,
+        definitionStale,
         chat: [...project.chat, userTurn, assistantTurn],
       });
       return { ok: true, project: updated };
@@ -172,7 +230,7 @@ export async function POST(request: NextRequest) {
 
     callOptions = {
       apiKey,
-      system: SCREEN_MOCK_SYSTEM_PROMPT,
+      system: SCREEN_MOCK_EDIT_SYSTEM_PROMPT,
       user: buildMockEditUserPrompt(
         currentHtml,
         screen,
@@ -185,9 +243,26 @@ export async function POST(request: NextRequest) {
     deltaKind = "text";
     finalize = (raw) => {
       const html = extractHtml(raw);
+      // ユーザーが修正指示ではなく質問・雑談を送ると、LLM はHTMLではなく会話文を返す。
+      // それをモックとして保存すると表示が壊れるため、モックは温存し会話として応答する。
+      if (!looksLikeHtmlDocument(html)) {
+        const reply =
+          html.trim() ||
+          "うまく修正内容を読み取れませんでした。変更したい箇所を具体的にお知らせください。";
+        const assistantTurn = turn("assistant", "mock", reply, { screenId });
+        const updated = updateProject(projectId, {
+          chat: [...project.chat, userTurn, assistantTurn],
+        });
+        return { ok: true, project: updated };
+      }
       const mocks = { ...project.mocks, [screenId]: html };
       const mockStale = { ...project.mockStale };
       delete mockStale[screenId];
+      // モックを直接編集して中身が変わったら、定義が追従していない可能性を立てる。
+      const definitionStale =
+        html !== project.mocks[screenId]
+          ? { ...project.definitionStale, [screenId]: true }
+          : project.definitionStale;
       const assistantTurn = turn(
         "assistant",
         "mock",
@@ -197,6 +272,7 @@ export async function POST(request: NextRequest) {
       const updated = updateProject(projectId, {
         mocks,
         mockStale,
+        definitionStale,
         chat: [...project.chat, userTurn, assistantTurn],
       });
       return { ok: true, project: updated };

@@ -9,7 +9,8 @@ function screen(id: string, name: string, overview = ""): ScreenDefinition {
 function project(
   screens: ScreenDefinition[],
   mocks: Record<string, string>,
-  mockStale: Record<string, boolean> = {}
+  mockStale: Record<string, boolean> = {},
+  definitionStale: Record<string, boolean> = {}
 ): Project {
   return {
     id: "p1",
@@ -20,6 +21,7 @@ function project(
     designRules: null,
     chat: [],
     mockStale,
+    definitionStale,
     createdAt: 0,
     updatedAt: 0,
   };
@@ -84,5 +86,34 @@ describe("computeDefinitionUpdate", () => {
       set([screen("SCR-001", "ログイン")])
     );
     expect(mockStale).toEqual({ "SCR-001": true });
+  });
+
+  it("definitionStaleな画面は定義を編集すると解消される", () => {
+    const existing = project(
+      [screen("SCR-001", "ログイン", "旧")],
+      { "SCR-001": "<a>" },
+      {},
+      { "SCR-001": true }
+    );
+    const { definitionStale } = computeDefinitionUpdate(
+      existing,
+      set([screen("SCR-001", "ログイン", "新")])
+    );
+    expect(definitionStale).toEqual({});
+  });
+
+  it("definitionStaleな画面は定義を触らなければフラグを維持する", () => {
+    const existing = project(
+      [screen("SCR-001", "ログイン"), screen("SCR-002", "一覧", "旧")],
+      { "SCR-001": "<a>", "SCR-002": "<b>" },
+      {},
+      { "SCR-001": true }
+    );
+    // SCR-002 だけ定義を変更。SCR-001 は未変更なので definitionStale を維持。
+    const { definitionStale } = computeDefinitionUpdate(
+      existing,
+      set([screen("SCR-001", "ログイン"), screen("SCR-002", "一覧", "新")])
+    );
+    expect(definitionStale).toEqual({ "SCR-001": true });
   });
 });

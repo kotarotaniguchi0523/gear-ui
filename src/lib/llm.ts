@@ -190,3 +190,14 @@ export function extractHtml(raw: string): string {
   if (fenced) return fenced[1].trim();
   return raw.trim();
 }
+
+/**
+ * 抽出済みテキストが「HTML文書らしい」かを判定する。
+ * モック編集に修正指示ではなく質問が来た場合、LLM はHTMLではなく会話文を返す。
+ * その会話文をモックとして保存してしまわないよう、保存前のガードに使う。
+ */
+export function looksLikeHtmlDocument(text: string): boolean {
+  const head = text.trimStart().slice(0, 200).toLowerCase();
+  const startsLikeHtml = head.startsWith("<!doctype html") || head.startsWith("<html");
+  return startsLikeHtml && /<\/html\s*>/i.test(text);
+}

@@ -30,6 +30,7 @@ function createDb(): Database.Database {
       design_rules_json TEXT,
       chat_json TEXT,
       mock_stale_json TEXT,
+      definition_stale_json TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -51,6 +52,9 @@ function createDb(): Database.Database {
   }
   if (!hasColumn("mock_stale_json")) {
     db.exec(`ALTER TABLE projects ADD COLUMN mock_stale_json TEXT`);
+  }
+  if (!hasColumn("definition_stale_json")) {
+    db.exec(`ALTER TABLE projects ADD COLUMN definition_stale_json TEXT`);
   }
 
   return db;
