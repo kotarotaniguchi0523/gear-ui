@@ -14,13 +14,6 @@
 # 日本語
 
 AIで **画面UI定義書** と **HTMLモック** を2段パイプラインで生成する OSS ツールです。
-
-```
-要件文 ─[LLM]─▶ 画面UI定義書 (JSON) ─[LLM]─▶ HTML モック (Tailwind + デザイントークン)
-                                                  │
-                            tokens.css の差し替えだけでテーマを一括変更
-```
-
 LLM は **Claude (Anthropic)** と **OpenAI / OpenAI互換** を切り替えて利用できます。
 
 ## 特徴
@@ -93,6 +86,12 @@ LLM_MODEL=llama3.1
 4. 右ペインの「モックを生成」で選択画面の HTML モックを生成
 5. テーマセレクタ（neutral / indigo / emerald）でデザイントークンを切り替え（**再生成なしで即反映**）
 6. 「デザインルール」ボタンから、情報密度・角丸・レイアウト・トーンの方針や自由記述の指示を設定（**プロジェクトごとに保存**。次回のモック生成／再生成に反映）
+
+### 画面イメージ
+
+| 1. 要件入力 | 2. 画面UI定義書 | 3. HTMLモック |
+|---|---|---|
+| ![要件入力](./public/pictures/01-requirements.png) | ![画面UI定義書](./public/pictures/02-ui-spec.png) | ![HTMLモック](./public/pictures/03-html-mock.png) |
 
 ## デザインルール
 
@@ -269,6 +268,12 @@ LLM_MODEL=llama3.1
 3. Select a screen tab to inspect the JSON in the center pane.
 4. Click **Generate mock** in the right pane to render the HTML mock.
 5. Use the theme selector (neutral / indigo / emerald) to switch design tokens — **applied live, no regeneration**.
+
+### Screenshots
+
+| 1. Requirements | 2. UI spec | 3. HTML mock |
+|---|---|---|
+| ![Requirements](./public/pictures/01-requirements.png) | ![UI spec](./public/pictures/02-ui-spec.png) | ![HTML mock](./public/pictures/03-html-mock.png) |
 
 ## Architecture
 
