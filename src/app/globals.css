@@ -13,7 +13,7 @@
   --card: #ffffff;
   --border: #e2e8f0;
   --muted: #94a3b8;
-  /* Font families (self-hosted via @fontsource in layout.tsx) */
+  /* Font families (self-hosted via @fontsource in src/client/main.tsx) */
   --font-chakra-petch: "Chakra Petch", sans-serif;
   --font-noto-sans-jp: "Noto Sans JP", sans-serif;
 }

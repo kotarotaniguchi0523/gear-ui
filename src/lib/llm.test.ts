@@ -3,47 +3,7 @@ import {
   extractHtml,
   extractJson,
   looksLikeHtmlDocument,
-  parseProvider,
-  resolveModel,
 } from "@/lib/llm";
-
-describe("parseProvider", () => {
-  it("defaults to anthropic when unset", () => {
-    expect(parseProvider(undefined)).toBe("anthropic");
-  });
-
-  it("is case-insensitive and trims whitespace", () => {
-    expect(parseProvider("  OpenAI ")).toBe("openai");
-  });
-
-  it("accepts the supported providers", () => {
-    expect(parseProvider("anthropic")).toBe("anthropic");
-    expect(parseProvider("openai")).toBe("openai");
-  });
-
-  it("throws on an unsupported provider", () => {
-    expect(() => parseProvider("gemini")).toThrow(/Unsupported LLM_PROVIDER/);
-  });
-});
-
-describe("resolveModel", () => {
-  it("uses the provider default when nothing is overridden", () => {
-    expect(resolveModel("anthropic")).toBe("claude-sonnet-4-5");
-    expect(resolveModel("openai")).toBe("gpt-4o");
-  });
-
-  it("prefers the env model over the default", () => {
-    expect(resolveModel("openai", undefined, "gpt-4o-mini")).toBe("gpt-4o-mini");
-  });
-
-  it("prefers an explicit model over both env and default", () => {
-    expect(resolveModel("openai", "o3", "gpt-4o-mini")).toBe("o3");
-  });
-
-  it("ignores a blank env model", () => {
-    expect(resolveModel("anthropic", undefined, "   ")).toBe("claude-sonnet-4-5");
-  });
-});
 
 describe("extractJson", () => {
   it("parses a bare JSON object", () => {

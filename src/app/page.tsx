@@ -1,6 +1,4 @@
-"use client";
-
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "hono/jsx";
 import {
   Sparkles,
   FileText,
@@ -11,7 +9,6 @@ import {
   RefreshCw,
   LayoutGrid,
   Settings,
-  KeyRound,
   Save,
   SlidersHorizontal,
   Send,
@@ -21,7 +18,7 @@ import {
   Maximize2,
   Minimize2,
   Download,
-} from "lucide-react";
+} from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { Panel } from "@/components/ui/panel";
@@ -37,7 +34,6 @@ import { ProjectSidebar } from "@/components/project-sidebar";
 import { downloadMarkdown, downloadXlsx, downloadMocksZip } from "@/lib/export/download";
 import { buildPreviewSrcDoc } from "@/lib/preview";
 import { MockPreviewFrame } from "@/components/mock-preview-frame";
-import { useApiKey } from "@/hooks/use-api-key";
 import { useProjects } from "@/hooks/use-projects";
 import { useGeneration } from "@/hooks/use-generation";
 import { DEFAULT_COLOR } from "@/lib/schemas";
@@ -62,9 +58,8 @@ function timestampedName(prefix: string): string {
 export default function Page() {
   const [requirement, setRequirement] = useState(SAMPLE_REQUIREMENT);
 
-  const { apiKey, save: saveApiKey, clear: clearApiKey, loaded: keyLoaded, hasKey } = useApiKey();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [envKeySet, setEnvKeySet] = useState<boolean | null>(null);
+  const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
 
   const [designRules, setDesignRules] = useState<DesignRules | null>(null);
   const [designRulesOpen, setDesignRulesOpen] = useState(false);
@@ -110,7 +105,6 @@ export default function Page() {
     activeProjectId,
     requirement,
     designRules,
-    apiKey,
     ensureProject,
     reloadProjects,
     onResetPanels: () => {
@@ -121,10 +115,10 @@ export default function Page() {
   });
 
   useEffect(() => {
-    fetch("/api/settings/status")
+    fetch("/api/codex/status")
       .then((r) => r.json())
-      .then((d) => setEnvKeySet(!!d.envKeySet))
-      .catch(() => setEnvKeySet(false));
+      .then((d) => setCodexAvailable(!!d.available))
+      .catch(() => setCodexAvailable(false));
   }, []);
 
   useEffect(() => {
@@ -133,7 +127,6 @@ export default function Page() {
     // no URL) and trip hydration, so this stays an on-mount effect.
     const params = new URLSearchParams(window.location.search);
     const p = params.get("p");
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration-safe mount read
     if (p) setActiveProjectId(p);
   }, []);
 
@@ -171,8 +164,8 @@ export default function Page() {
     };
   }, [activeProjectId, loadProject, hydrateGen]);
 
-  const canGenerate = hasKey || envKeySet === true;
-  const showKeyWarning = keyLoaded && envKeySet === false && !hasKey;
+  const canGenerate = codexAvailable === true;
+  const showCodexWarning = codexAvailable === false;
   const activeProject = useMemo(
     () => projects.list.find((p) => p.id === activeProjectId) ?? null,
     [projects.list, activeProjectId]
@@ -300,25 +293,19 @@ export default function Page() {
           <button
             onClick={() => setSettingsOpen(true)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${
-              showKeyWarning
+              showCodexWarning
                 ? "text-amber-700 bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-200"
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
             }`}
-            title={
-              hasKey
-                ? "API キー設定済み"
-                : envKeySet
-                ? "サーバ環境変数のキーを使用中"
-                : "API キー未設定"
-            }
+            title={canGenerate ? "Codex セッション利用可能" : "Codex セッション未確認"}
           >
-            {showKeyWarning ? (
+            {showCodexWarning ? (
               <AlertCircle className="w-4 h-4" />
             ) : (
               <Settings className="w-4 h-4" />
             )}
-            {showKeyWarning ? "APIキーを設定" : "設定"}
-            {hasKey && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+            Codex
+            {canGenerate && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
           </button>
           <a
             href="https://github.com/lance-digital/gear-ui"
@@ -339,17 +326,17 @@ export default function Page() {
         </div>
       </header>
 
-      {showKeyWarning && (
+      {showCodexWarning && (
         <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center gap-2 text-xs text-amber-900 shrink-0">
-          <KeyRound className="w-3.5 h-3.5 shrink-0" />
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span className="flex-1">
-            Anthropic API キーが設定されていません。生成機能を使うには右上の「APIキーを設定」から登録してください。
+            Codex セッションを確認できません。サーバーを起動しているユーザーで `codex login` を完了してください。
           </span>
           <button
             onClick={() => setSettingsOpen(true)}
             className="px-2 py-0.5 bg-amber-600 text-white rounded text-[11px] font-semibold hover:bg-amber-700"
           >
-            設定する
+            確認
           </button>
         </div>
       )}
@@ -381,7 +368,9 @@ export default function Page() {
               <div className="flex-1 min-h-0 flex flex-col gap-3 p-4">
                 <textarea
                   value={requirement}
-                  onChange={(e) => handleRequirementChange(e.target.value)}
+                  onChange={(e) =>
+                    handleRequirementChange((e.target as HTMLTextAreaElement).value)
+                  }
                   className="flex-1 min-h-0 w-full p-3 border border-slate-200 rounded-lg text-xs font-mono resize-none bg-slate-50 text-slate-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                   placeholder="作りたいシステムの概要・対象ユーザー・機能を自由に書いてください"
                 />
@@ -408,7 +397,7 @@ export default function Page() {
                     disabled={requirement.trim().length === 0 || !canGenerate}
                     size="md"
                     className="w-full"
-                    title={!canGenerate ? "先にAPIキーを設定してください" : undefined}
+                    title={!canGenerate ? "Codex セッションを確認してください" : undefined}
                   >
                     <Sparkles className="w-4 h-4" />
                     画面定義を生成
@@ -427,7 +416,9 @@ export default function Page() {
                   <div className="px-4 pb-3 flex flex-col gap-2">
                     <textarea
                       value={requirement}
-                      onChange={(e) => handleRequirementChange(e.target.value)}
+                      onChange={(e) =>
+                        handleRequirementChange((e.target as HTMLTextAreaElement).value)
+                      }
                       rows={5}
                       className="w-full p-2.5 border border-slate-200 rounded-lg text-xs font-mono resize-none bg-slate-50 text-slate-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                     />
@@ -455,7 +446,7 @@ export default function Page() {
                         size="sm"
                         title={
                           !canGenerate
-                            ? "先にAPIキーを設定してください"
+                            ? "Codex セッションを確認してください"
                             : "現在の定義・モック・チャット履歴を破棄して作り直します"
                         }
                       >
@@ -493,9 +484,11 @@ export default function Page() {
                   <div className="flex items-end gap-2">
                     <textarea
                       value={gen.chatInput}
-                      onChange={(e) => gen.setChatInput(e.target.value)}
+                      onChange={(e) =>
+                        gen.setChatInput((e.target as HTMLTextAreaElement).value)
+                      }
                       onKeyDown={(e) => {
-                        if (e.nativeEvent.isComposing) return;
+                        if (e.isComposing) return;
                         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                           e.preventDefault();
                           gen.sendChat();
@@ -514,7 +507,7 @@ export default function Page() {
                       onClick={gen.sendChat}
                       disabled={gen.chatBusy || !canGenerate || gen.chatInput.trim().length === 0}
                       className="shrink-0 p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                      title={!canGenerate ? "先にAPIキーを設定してください" : "送信"}
+                      title={!canGenerate ? "Codex セッションを確認してください" : "送信"}
                     >
                       {gen.chatBusy ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -702,7 +695,7 @@ export default function Page() {
                       size="sm"
                       title={
                         !canGenerate
-                          ? "先にAPIキーを設定してください"
+                          ? "Codex セッションを確認してください"
                           : "画面定義の数だけモックをまとめて生成します"
                       }
                     >
@@ -718,7 +711,7 @@ export default function Page() {
                       disabled={!selectedScreen || mockGenerating || !canGenerate}
                       loading={gen.mocking}
                       size="sm"
-                      title={!canGenerate ? "先にAPIキーを設定してください" : undefined}
+                      title={!canGenerate ? "Codex セッションを確認してください" : undefined}
                     >
                       {!gen.mocking && <Sparkles className="w-3.5 h-3.5" />}
                       {gen.mocking ? "生成中…" : "モックを生成"}
@@ -773,9 +766,7 @@ export default function Page() {
       {settingsOpen && (
         <SettingsDialog
           onClose={() => setSettingsOpen(false)}
-          apiKey={apiKey}
-          onSave={saveApiKey}
-          onClear={clearApiKey}
+          available={canGenerate}
         />
       )}
 

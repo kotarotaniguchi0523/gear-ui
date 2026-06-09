@@ -1,9 +1,11 @@
+import type { Child } from "hono/jsx";
+
 export function EmptyState({
   icon,
   title,
   description,
 }: {
-  icon: React.ReactNode;
+  icon: Child;
   title: string;
   description: string;
 }) {

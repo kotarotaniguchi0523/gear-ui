@@ -1,7 +1,6 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "hono/jsx";
 import type { DesignRules } from "@/lib/schemas";
+import { apiClient } from "@/lib/api-client";
 // Single source of truth for these shapes lives next to the DB repo. These are
 // `import type` only, so no server/better-sqlite3 code reaches the client bundle.
 import type { Project, ProjectSummary } from "@/lib/repo/projects";
@@ -9,7 +8,7 @@ import type { Project, ProjectSummary } from "@/lib/repo/projects";
 export type { Project, ProjectSummary };
 
 async function fetchProjects(): Promise<ProjectSummary[]> {
-  const res = await fetch("/api/projects");
+  const res = await apiClient.api.projects.$get();
   const data = await res.json();
   return data.projects ?? [];
 }
@@ -47,11 +46,7 @@ export function useProjects() {
       requirement?: string;
       designRules?: DesignRules;
     }) => {
-      const res = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(input),
-      });
+      const res = await apiClient.api.projects.$post({ json: input });
       const project = (await res.json()) as Project;
       await reload();
       return project;
@@ -60,7 +55,7 @@ export function useProjects() {
   );
 
   const load = useCallback(async (id: string): Promise<Project | null> => {
-    const res = await fetch(`/api/projects/${id}`);
+    const res = await apiClient.api.projects[":id"].$get({ param: { id } });
     if (!res.ok) return null;
     return (await res.json()) as Project;
   }, []);
@@ -74,10 +69,9 @@ export function useProjects() {
         designRules?: DesignRules | null;
       }
     ): Promise<Project | null> => {
-      const res = await fetch(`/api/projects/${id}`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(data),
+      const res = await (apiClient.api.projects[":id"].$patch as any)({
+        param: { id },
+        json: data,
       });
       if (!res.ok) return null;
       const project = (await res.json()) as Project;
@@ -96,7 +90,7 @@ export function useProjects() {
 
   const remove = useCallback(
     async (id: string) => {
-      await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      await apiClient.api.projects[":id"].$delete({ param: { id } });
       await reload();
     },
     [reload]

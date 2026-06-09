@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useState } from "hono/jsx";
 import { MOCK_PREVIEW_MIN_WIDTH } from "@/lib/preview";
 
 /**

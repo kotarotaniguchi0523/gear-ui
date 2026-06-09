@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useState } from "hono/jsx";
 import {
   Plus,
   Trash2,
@@ -11,7 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-} from "lucide-react";
+} from "@/components/ui/icon";
 import type { ProjectSummary } from "@/hooks/use-projects";
 
 interface Props {
@@ -145,9 +143,9 @@ function ProjectRow({
         <input
           autoFocus
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => setDraft((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.isComposing) return;
             if (e.key === "Enter") commit();
             if (e.key === "Escape") {
               setDraft(project.name);

@@ -1,6 +1,5 @@
-"use client";
-
 import type { ScreenDefinition } from "@/lib/schemas";
+import type { Child } from "hono/jsx";
 import {
   Users,
   LayoutGrid,
@@ -8,7 +7,7 @@ import {
   Zap,
   ArrowRightLeft,
   ListOrdered,
-} from "lucide-react";
+} from "@/components/ui/icon";
 
 interface Props {
   screen: ScreenDefinition;
@@ -183,10 +182,10 @@ function Section({
   count,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: Child;
   title: string;
   count: number;
-  children: React.ReactNode;
+  children: Child;
 }) {
   return (
     <section>

@@ -1,7 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { X, Palette, Check, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "hono/jsx";
+import { X, Palette, Check, RotateCcw } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import type { DesignRules } from "@/lib/schemas";
 
@@ -241,7 +239,10 @@ export function DesignRulesDialog({ onClose, value, onSave }: Props) {
             <textarea
               value={rules.notes ?? ""}
               onChange={(e) =>
-                setRules((prev) => ({ ...prev, notes: e.target.value }))
+                setRules((prev) => ({
+                  ...prev,
+                  notes: (e.target as HTMLTextAreaElement).value,
+                }))
               }
               rows={3}
               maxLength={2000}

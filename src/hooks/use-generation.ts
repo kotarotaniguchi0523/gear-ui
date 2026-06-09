@@ -1,6 +1,4 @@
-"use client";
-
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "hono/jsx";
 import { consumeSse } from "@/lib/sse-client";
 import {
   LIVE_PREVIEW_INTERVAL_MS,
@@ -25,7 +23,6 @@ export interface GenerationDeps {
   activeProjectId: string | null;
   requirement: string;
   designRules: DesignRules | null;
-  apiKey: string;
   /** 未作成なら新規プロジェクトを作って id を返す。 */
   ensureProject: () => Promise<string>;
   /** プロジェクト一覧（サイドバー）の再取得。 */
@@ -68,15 +65,11 @@ export function useGeneration(deps: GenerationDeps) {
   // 進行中の生成（定義・モック）を中止するための AbortController。
   const abortRef = useRef<AbortController | null>(null);
 
-  const buildHeaders = useCallback(
-    (opts?: { stream?: boolean }): Record<string, string> => {
-      const headers: Record<string, string> = { "content-type": "application/json" };
-      if (deps.apiKey) headers["x-llm-api-key"] = deps.apiKey;
-      if (opts?.stream) headers["accept"] = "text/event-stream";
-      return headers;
-    },
-    [deps.apiKey]
-  );
+  const buildHeaders = useCallback((opts?: { stream?: boolean }): Record<string, string> => {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (opts?.stream) headers["accept"] = "text/event-stream";
+    return headers;
+  }, []);
 
   const selectedScreen: ScreenDefinition | null = defs?.screens[selectedIndex] ?? null;
   const currentMockHtml = selectedScreen
