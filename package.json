@@ -43,6 +43,7 @@
     "better-sqlite3": "^12.10.0",
     "hono": "^4.10.7",
     "lucide-static": "^0.547.0",
+    "xstate": "^5.32.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

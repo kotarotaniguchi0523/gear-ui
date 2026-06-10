@@ -1,4 +1,4 @@
-import { useEffect, useState } from "hono/jsx";
+import { useActionState, useEffect } from "hono/jsx";
 import { X, Settings, Check, AlertCircle } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 
@@ -7,10 +7,14 @@ interface Props {
   available: boolean;
 }
 
+async function markChecked(): Promise<boolean> {
+  return true;
+}
+
 // Rendered only while the dialog is open (see Page), so mounting == opening:
 // the form fields initialize fresh from props on every open, no reset effect.
 export function SettingsDialog({ onClose, available }: Props) {
-  const [checked, setChecked] = useState(false);
+  const [checked, confirmChecked] = useActionState<boolean>(markChecked, false);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -74,7 +78,7 @@ export function SettingsDialog({ onClose, available }: Props) {
             <Button variant="outline" size="sm" onClick={onClose}>
               閉じる
             </Button>
-            <Button size="sm" onClick={() => setChecked(true)}>
+            <Button size="sm" onClick={() => confirmChecked(new FormData())}>
               状態を確認
             </Button>
           </div>

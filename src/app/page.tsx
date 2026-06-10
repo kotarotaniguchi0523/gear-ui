@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "hono/jsx";
+import {
+  useActionState,
+  useEffect,
+  useReducer,
+  useRef,
+} from "hono/jsx";
 import {
   Sparkles,
   FileText,
@@ -36,14 +41,13 @@ import { buildPreviewSrcDoc } from "@/lib/preview";
 import { MockPreviewFrame } from "@/components/mock-preview-frame";
 import { useProjects } from "@/hooks/use-projects";
 import { useGeneration } from "@/hooks/use-generation";
-import { DEFAULT_COLOR } from "@/lib/schemas";
 import type { DesignRules } from "@/lib/schemas";
-
-const SAMPLE_REQUIREMENT = `社内向けの簡易タスク管理SaaSを作りたい。
-- ユーザーはログインしてタスクの登録・編集・削除ができる
-- タスクには「タイトル / 担当者 / 期日 / 優先度（高・中・低）/ ステータス（未着手・進行中・完了）」がある
-- 一覧画面ではフィルタとソートができる
-- 管理者はメンバー一覧と権限変更ができる`;
+import {
+  countDesignRules,
+  initialPageState,
+  pageReducer,
+  selectedColor,
+} from "@/app/page-state";
 
 // 「プロジェクト 06/03 14:25」のような、作成時刻つきの既定名を組み立てる。
 function timestampedName(prefix: string): string {
@@ -55,18 +59,28 @@ function timestampedName(prefix: string): string {
   })}`;
 }
 
+type CodexStatus = {
+  available: boolean | null;
+};
+
+async function checkCodexStatus(): Promise<CodexStatus> {
+  try {
+    const res = await fetch("/api/codex/status");
+    const data = await res.json();
+    return { available: !!data.available };
+  } catch {
+    return { available: false };
+  }
+}
+
 export default function Page() {
-  const [requirement, setRequirement] = useState(SAMPLE_REQUIREMENT);
-
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [codexAvailable, setCodexAvailable] = useState<boolean | null>(null);
-
-  const [designRules, setDesignRules] = useState<DesignRules | null>(null);
-  const [designRulesOpen, setDesignRulesOpen] = useState(false);
+  const [state, dispatchPage] = useReducer(pageReducer, initialPageState);
+  const [codexStatus, refreshCodexStatus] = useActionState<CodexStatus>(
+    checkCodexStatus,
+    { available: null }
+  );
 
   const projects = useProjects();
-  // These are stable (useCallback in useProjects); pull them out so effect/callback
-  // dependency lists stay accurate without re-running on every render.
   const {
     reload: reloadProjects,
     create: createProject,
@@ -74,51 +88,39 @@ export default function Page() {
     patch: patchProject,
     remove: removeProject,
   } = projects;
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // 要件・定義パネルの折りたたみ。モック初回生成時に自動で畳んでプレビューに集中する
-  // 「フォーカスモード」を提供しつつ、ヘッダ／縦バーから手動でも開閉できる。
-  const [reqCollapsed, setReqCollapsed] = useState(false);
-  const [defCollapsed, setDefCollapsed] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
-
   const requirementSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // モックが初めて出来たら、最も幅を取る「画面UI定義書」だけを畳んでプレビューを広げる。
-  const enterFocusMode = useCallback(() => {
-    setDefCollapsed(true);
-  }, []);
-
   async function ensureProject(): Promise<string> {
-    if (activeProjectId) return activeProjectId;
+    if (state.activeProjectId) return state.activeProjectId;
     const created = await createProject({
       name: timestampedName("プロジェクト"),
-      requirement,
-      ...(designRules ? { designRules } : {}),
+      requirement: state.requirement,
+      ...(state.designRules ? { designRules: state.designRules } : {}),
     });
-    setActiveProjectId(created.id);
+    dispatchPage({ type: "projectActivated", id: created.id });
     return created.id;
   }
 
-  // 「定義 → モック → チャット修正」のドキュメント状態と生成アクション。
   const gen = useGeneration({
-    activeProjectId,
-    requirement,
-    designRules,
+    activeProjectId: state.activeProjectId,
+    requirement: state.requirement,
+    designRules: state.designRules,
     ensureProject,
     reloadProjects,
     onResetPanels: () => {
-      setReqCollapsed(false);
-      setDefCollapsed(false);
+      dispatchPage({ type: "panelsChanged", reqCollapsed: false, defCollapsed: false });
     },
-    onEnterFocusMode: enterFocusMode,
+    onEnterFocusMode: () => {
+      dispatchPage({
+        type: "panelsChanged",
+        reqCollapsed: state.reqCollapsed,
+        defCollapsed: true,
+      });
+    },
   });
 
   useEffect(() => {
-    fetch("/api/codex/status")
-      .then((r) => r.json())
-      .then((d) => setCodexAvailable(!!d.available))
-      .catch(() => setCodexAvailable(false));
+    refreshCodexStatus(new FormData());
   }, []);
 
   useEffect(() => {
@@ -127,12 +129,12 @@ export default function Page() {
     // no URL) and trip hydration, so this stays an on-mount effect.
     const params = new URLSearchParams(window.location.search);
     const p = params.get("p");
-    if (p) setActiveProjectId(p);
+    if (p) dispatchPage({ type: "projectActivated", id: p });
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (activeProjectId) params.set("p", activeProjectId);
+    if (state.activeProjectId) params.set("p", state.activeProjectId);
     else params.delete("p");
     const search = params.toString();
     window.history.replaceState(
@@ -140,107 +142,83 @@ export default function Page() {
       "",
       search ? `?${search}` : window.location.pathname
     );
-  }, [activeProjectId]);
+  }, [state.activeProjectId]);
 
-  const hydrateGen = gen.hydrate;
   useEffect(() => {
-    if (!activeProjectId) return;
+    if (!state.activeProjectId) return;
     let cancelled = false;
-    loadProject(activeProjectId).then((proj) => {
+    loadProject(state.activeProjectId).then((proj) => {
       if (cancelled) return;
       if (!proj) {
-        setActiveProjectId(null);
+        dispatchPage({ type: "projectActivated", id: null });
         return;
       }
-      setRequirement(proj.requirement || "");
-      setDesignRules(proj.designRules ?? null);
-      setSaveStatus("idle");
-      setReqCollapsed(false);
-      setDefCollapsed(false);
-      hydrateGen(proj);
+      dispatchPage({
+        type: "projectHydrated",
+        requirement: proj.requirement || "",
+        designRules: proj.designRules ?? null,
+      });
+      gen.hydrate(proj);
     });
     return () => {
       cancelled = true;
     };
-  }, [activeProjectId, loadProject, hydrateGen]);
+  }, [state.activeProjectId]);
 
-  const canGenerate = codexAvailable === true;
-  const showCodexWarning = codexAvailable === false;
-  const activeProject = useMemo(
-    () => projects.list.find((p) => p.id === activeProjectId) ?? null,
-    [projects.list, activeProjectId]
-  );
-  const designRuleCount = useMemo(() => {
-    if (!designRules) return 0;
-    let n = 0;
-    if (designRules.color) n++;
-    if (designRules.density) n++;
-    if (designRules.radius) n++;
-    // 「おまかせ(auto)」は未指定と同じ扱いでカウントしない
-    if (designRules.layout && designRules.layout !== "auto") n++;
-    if (designRules.tone && designRules.tone !== "auto") n++;
-    if (designRules.notes?.trim()) n++;
-    return n;
-  }, [designRules]);
+  const canGenerate = codexStatus.available === true;
+  const showCodexWarning = codexStatus.available === false;
+  const activeProject =
+    projects.list.find((p) => p.id === state.activeProjectId) ?? null;
+  const designRuleCount = countDesignRules(state.designRules);
 
-  const flashSaved = useCallback(() => {
-    setSaveStatus("saved");
-    setTimeout(() => setSaveStatus("idle"), 1200);
-  }, []);
+  function flashSaved() {
+    dispatchPage({ type: "saveCompleted" });
+    setTimeout(() => dispatchPage({ type: "saveSettled" }), 1200);
+  }
 
   // モックの全画面表示: 要件チャットと定義書の両パネルを畳んでプレビューを最大化する。
-  const mockFullscreen = reqCollapsed && defCollapsed;
-  const toggleMockFullscreen = useCallback(() => {
+  const mockFullscreen = state.reqCollapsed && state.defCollapsed;
+  function toggleMockFullscreen() {
     const next = !mockFullscreen; // 全画面でなければ両パネルを畳む / 全画面なら開く
-    setReqCollapsed(next);
-    setDefCollapsed(next);
-  }, [mockFullscreen]);
+    dispatchPage({ type: "panelsChanged", reqCollapsed: next, defCollapsed: next });
+  }
 
-  const handleRequirementChange = useCallback(
-    (value: string) => {
-      setRequirement(value);
-      if (!activeProjectId) return;
-      if (requirementSaveTimer.current) clearTimeout(requirementSaveTimer.current);
-      setSaveStatus("saving");
-      requirementSaveTimer.current = setTimeout(() => {
-        patchProject(activeProjectId, { requirement: value }).then(flashSaved);
-      }, 600);
-    },
-    [activeProjectId, patchProject, flashSaved]
-  );
+  function handleRequirementChange(value: string) {
+    dispatchPage({ type: "requirementChanged", value });
+    if (!state.activeProjectId) return;
+    if (requirementSaveTimer.current) clearTimeout(requirementSaveTimer.current);
+    dispatchPage({ type: "saveStarted" });
+    requirementSaveTimer.current = setTimeout(() => {
+      patchProject(state.activeProjectId!, { requirement: value }).then(flashSaved);
+    }, 600);
+  }
 
-  const handleDesignRulesChange = useCallback(
-    (value: DesignRules) => {
-      setDesignRules(value);
-      if (!activeProjectId) return;
-      setSaveStatus("saving");
-      patchProject(activeProjectId, { designRules: value }).then(flashSaved);
-    },
-    [activeProjectId, patchProject, flashSaved]
-  );
+  function handleDesignRulesChange(value: DesignRules) {
+    dispatchPage({ type: "designRulesChanged", value });
+    if (!state.activeProjectId) return;
+    dispatchPage({ type: "saveStarted" });
+    patchProject(state.activeProjectId, { designRules: value }).then(flashSaved);
+  }
 
   // 色は旧テーマ機能をデザインルールへ統合したもの。tokens.css を
   // /tokens/{color}.css に差し替えて即時反映する（再生成は不要）。
-  const color = designRules?.color ?? DEFAULT_COLOR;
-  const themedSrcDoc = useMemo(
-    () => (gen.previewHtml ? buildPreviewSrcDoc(gen.previewHtml, color) : null),
-    [gen.previewHtml, color]
-  );
+  const color = selectedColor(state.designRules);
+  const themedSrcDoc = gen.previewHtml
+    ? buildPreviewSrcDoc(gen.previewHtml, color)
+    : null;
 
   async function handleCreateProject() {
     const created = await createProject({
       name: timestampedName("新規プロジェクト"),
       requirement: "",
     });
-    setActiveProjectId(created.id);
+    dispatchPage({ type: "projectActivated", id: created.id });
   }
 
   async function handleDeleteProject(id: string) {
     await removeProject(id);
-    if (id === activeProjectId) {
-      setActiveProjectId(null);
-      setRequirement(SAMPLE_REQUIREMENT);
-      setDesignRules(null);
+    if (id === state.activeProjectId) {
+      dispatchPage({ type: "projectReset" });
       gen.reset();
     }
   }
@@ -253,6 +231,19 @@ export default function Page() {
   const selectedScreen = gen.selectedScreen;
   const mockGenerating = gen.mocking || gen.bulkProgress !== null;
   const hasMocks = Object.keys(gen.mocks).length > 0;
+  const pageActions = {
+    openSettings: () => dispatchPage({ type: "settingsOpened" }),
+    closeSettings: () => dispatchPage({ type: "settingsClosed" }),
+    openDesignRules: () => dispatchPage({ type: "designRulesOpened" }),
+    closeDesignRules: () => dispatchPage({ type: "designRulesClosed" }),
+    toggleSidebar: () => dispatchPage({ type: "sidebarToggled" }),
+    toggleRequirementPanel: () =>
+      dispatchPage({ type: "requirementPanelToggled" }),
+    toggleDefinitionPanel: () =>
+      dispatchPage({ type: "definitionPanelToggled" }),
+    activateProject: (id: string) =>
+      dispatchPage({ type: "projectActivated", id }),
+  };
 
   return (
     <div className="h-screen flex flex-col bg-slate-100">
@@ -273,13 +264,13 @@ export default function Page() {
               <div className="flex items-center gap-1.5 text-xs">
                 <span className="text-slate-400">編集中:</span>
                 <span className="font-medium text-slate-900">{activeProject.name}</span>
-                {saveStatus === "saving" && (
+                {state.saveStatus === "saving" && (
                   <span className="inline-flex items-center gap-1 text-slate-400 ml-1">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     保存中
                   </span>
                 )}
-                {saveStatus === "saved" && (
+                {state.saveStatus === "saved" && (
                   <span className="inline-flex items-center gap-1 text-emerald-600 ml-1">
                     <Save className="w-3 h-3" />
                     保存済み
@@ -291,7 +282,7 @@ export default function Page() {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={pageActions.openSettings}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg ${
               showCodexWarning
                 ? "text-amber-700 bg-amber-50 hover:bg-amber-100 ring-1 ring-amber-200"
@@ -333,7 +324,7 @@ export default function Page() {
             Codex セッションを確認できません。サーバーを起動しているユーザーで `codex login` を完了してください。
           </span>
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={pageActions.openSettings}
             className="px-2 py-0.5 bg-amber-600 text-white rounded text-[11px] font-semibold hover:bg-amber-700"
           >
             確認
@@ -341,13 +332,29 @@ export default function Page() {
         </div>
       )}
 
+      {gen.ux.message && (
+        <div className="bg-blue-50 border-b border-blue-200 px-6 py-2 flex items-center gap-2 text-xs text-blue-900 shrink-0">
+          <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+          <span className="flex-1">{gen.ux.message}</span>
+          {gen.ux.canStop && (
+            <button
+              onClick={gen.stopGeneration}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-700 text-white rounded text-[11px] font-semibold hover:bg-blue-800"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              停止
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 flex">
         <ProjectSidebar
           projects={projects.list}
-          activeProjectId={activeProjectId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          onSelect={(id) => setActiveProjectId(id)}
+          activeProjectId={state.activeProjectId}
+          collapsed={state.sidebarCollapsed}
+          onToggleCollapse={pageActions.toggleSidebar}
+          onSelect={pageActions.activateProject}
           onCreate={handleCreateProject}
           onRename={handleRenameProject}
           onDelete={handleDeleteProject}
@@ -357,8 +364,8 @@ export default function Page() {
           <Panel
             weight={3}
             collapsible
-            collapsed={reqCollapsed}
-            onToggleCollapse={() => setReqCollapsed((v) => !v)}
+            collapsed={state.reqCollapsed}
+            onToggleCollapse={pageActions.toggleRequirementPanel}
             icon={<Sparkles className="w-4 h-4 text-blue-600" />}
             title="プロジェクト要件"
             subtitle={defs ? "チャットで定義・モックを修正" : "作りたいシステムを自由形式で記述"}
@@ -367,7 +374,7 @@ export default function Page() {
               // 初回: 要件を入力して定義を生成するシード入力モード
               <div className="flex-1 min-h-0 flex flex-col gap-3 p-4">
                 <textarea
-                  value={requirement}
+                  value={state.requirement}
                   onChange={(e) =>
                     handleRequirementChange((e.target as HTMLTextAreaElement).value)
                   }
@@ -394,7 +401,7 @@ export default function Page() {
                 ) : (
                   <Button
                     onClick={gen.generateDefinitions}
-                    disabled={requirement.trim().length === 0 || !canGenerate}
+                    disabled={state.requirement.trim().length === 0 || !canGenerate}
                     size="md"
                     className="w-full"
                     title={!canGenerate ? "Codex セッションを確認してください" : undefined}
@@ -415,7 +422,7 @@ export default function Page() {
                   </summary>
                   <div className="px-4 pb-3 flex flex-col gap-2">
                     <textarea
-                      value={requirement}
+                      value={state.requirement}
                       onChange={(e) =>
                         handleRequirementChange((e.target as HTMLTextAreaElement).value)
                       }
@@ -441,7 +448,7 @@ export default function Page() {
                     ) : (
                       <Button
                         onClick={gen.generateDefinitions}
-                        disabled={requirement.trim().length === 0 || !canGenerate}
+                        disabled={state.requirement.trim().length === 0 || !canGenerate}
                         variant="outline"
                         size="sm"
                         title={
@@ -478,14 +485,14 @@ export default function Page() {
                     target={gen.effectiveTarget}
                     canMock={!!gen.currentMockHtml}
                     screenName={selectedScreen?.screenName}
-                    onChange={gen.setFocusOverride}
+                    onChange={gen.changeFocusTarget}
                   />
                   {gen.chatError && <ErrorMessage message={gen.chatError} />}
                   <div className="flex items-end gap-2">
                     <textarea
                       value={gen.chatInput}
                       onChange={(e) =>
-                        gen.setChatInput((e.target as HTMLTextAreaElement).value)
+                        gen.changeChatInput((e.target as HTMLTextAreaElement).value)
                       }
                       onKeyDown={(e) => {
                         if (e.isComposing) return;
@@ -524,8 +531,8 @@ export default function Page() {
           <Panel
             weight={5}
             collapsible
-            collapsed={defCollapsed}
-            onToggleCollapse={() => setDefCollapsed((v) => !v)}
+            collapsed={state.defCollapsed}
+            onToggleCollapse={pageActions.toggleDefinitionPanel}
             icon={<FileText className="w-4 h-4 text-indigo-600" />}
             title="画面UI定義書"
             subtitle={
@@ -663,7 +670,9 @@ export default function Page() {
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 flex-wrap">
                 <button
-                  onClick={() => setDesignRulesOpen(true)}
+                  onClick={() =>
+                    pageActions.openDesignRules()
+                  }
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border ${
                     designRuleCount > 0
                       ? "text-fuchsia-700 bg-fuchsia-50 border-fuchsia-200 hover:bg-fuchsia-100"
@@ -763,17 +772,17 @@ export default function Page() {
         </div>
       </div>
 
-      {settingsOpen && (
+      {state.settingsOpen && (
         <SettingsDialog
-          onClose={() => setSettingsOpen(false)}
+          onClose={pageActions.closeSettings}
           available={canGenerate}
         />
       )}
 
-      {designRulesOpen && (
+      {state.designRulesOpen && (
         <DesignRulesDialog
-          onClose={() => setDesignRulesOpen(false)}
-          value={designRules}
+          onClose={pageActions.closeDesignRules}
+          value={state.designRules}
           onSave={handleDesignRulesChange}
         />
       )}
