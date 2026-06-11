@@ -4,14 +4,18 @@
   "private": true,
   "description": "Codex で画面UI定義書と HTML モックを2段パイプラインで生成する OSS ツール / Generate screen-UI specs and HTML mocks with a two-stage Codex pipeline.",
   "license": "Apache-2.0",
-  "author": "Kumaiu",
-  "homepage": "https://github.com/lance-digital/gear-ui#readme",
+  "author": "kotarotaniguchi0523",
+  "contributors": [
+    "Kumaiu",
+    "Lancetier Inc."
+  ],
+  "homepage": "https://github.com/kotarotaniguchi0523/gear-ui#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lance-digital/gear-ui.git"
+    "url": "git+https://github.com/kotarotaniguchi0523/gear-ui.git"
   },
   "bugs": {
-    "url": "https://github.com/lance-digital/gear-ui/issues"
+    "url": "https://github.com/kotarotaniguchi0523/gear-ui/issues"
   },
   "keywords": [
     "ai",

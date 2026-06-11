@@ -97,6 +97,11 @@ Unit tests cover schemas, prompt builders, repository behavior, export helpers, 
 
 Themes live in `public/tokens/*.css`. To add a palette, add `public/tokens/<name>.css`, then register it in `src/lib/schemas.ts` and the color list in `src/components/design-rules-dialog.tsx`.
 
-## License
+## License & Attribution
 
-[Apache License 2.0](./LICENSE)
+This repository is maintained as a fork of
+[`lance-digital/gear-ui`](https://github.com/lance-digital/gear-ui).
+It is licensed under the [Apache License 2.0](./LICENSE). Original copyright
+and attribution notices from Lancetier Inc. are retained in [`LICENSE`](./LICENSE)
+and [`NOTICE`](./NOTICE). Fork-specific modifications and maintenance are provided by
+[`kotarotaniguchi0523`](https://github.com/kotarotaniguchi0523).
