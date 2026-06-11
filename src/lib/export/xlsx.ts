@@ -42,6 +42,7 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 // Excel は「壊れたファイル」として開けなくなる。エスケープ前に取り除く。
 function stripInvalidXmlChars(s: string): string {
   // 許可: \t(09) \n(0A) \r(0D)。それ以外の C0 制御文字（00-08, 0B, 0C, 0E-1F）を除去。
+  // eslint-disable-next-line no-control-regex -- XML 1.0 invalid C0 control range.
   return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
 }
 

@@ -1,4 +1,4 @@
-import { FileText, Monitor } from "lucide-react";
+import { FileText, Monitor } from "@/components/ui/icon";
 import type { ChatTarget } from "@/lib/schemas";
 
 export function FocusTargetChip({

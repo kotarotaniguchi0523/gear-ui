@@ -1,4 +1,5 @@
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "@/components/ui/icon";
+import type { Child } from "hono/jsx";
 
 export function Panel({
   weight = 1,
@@ -12,14 +13,14 @@ export function Panel({
   children,
 }: {
   weight?: number;
-  icon: React.ReactNode;
+  icon: Child;
   title: string;
   subtitle?: string;
-  headerExtra?: React.ReactNode;
+  headerExtra?: Child;
   collapsible?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  children: React.ReactNode;
+  children: Child;
 }) {
   // 同じ <section> のまま flex の伸び率と basis をアニメーションさせて、
   // 畳む／開くを滑らかにスライドさせる（パッと切り替わらない）。

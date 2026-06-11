@@ -1,5 +1,5 @@
 /**
- * Browser-side reader for the SSE streams produced by `createSseResponse`.
+ * Browser-side reader for the SSE streams produced by the Hono generation routes.
  *
  * Pass a map of event name -> handler. Each handler receives the parsed JSON
  * payload of its event (or the raw string if it was not valid JSON).

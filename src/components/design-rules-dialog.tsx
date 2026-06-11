@@ -1,7 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { X, Palette, Check, RotateCcw } from "lucide-react";
+import { useEffect, useReducer } from "hono/jsx";
+import { X, Palette, Check, RotateCcw } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import type { DesignRules } from "@/lib/schemas";
 
@@ -76,6 +74,54 @@ const COLORS: { value: NonNullable<DesignRules["color"]>; label: string; swatch:
   { value: "emerald", label: "Emerald", swatch: "#047857" },
 ];
 
+type DraftState = {
+  rules: DesignRules;
+  savedNotice: boolean;
+};
+
+type DraftAction =
+  | { type: "pick"; key: keyof DesignRules; value: string }
+  | { type: "notes"; value: string }
+  | { type: "reset" }
+  | { type: "savedNotice"; value: boolean };
+
+type DraftHandler<K extends DraftAction["type"]> = (
+  state: DraftState,
+  action: Extract<DraftAction, { type: K }>
+) => DraftState;
+
+const draftHandlers: {
+  [K in DraftAction["type"]]: DraftHandler<K>;
+} = {
+  pick: (state, action) => {
+    const current = state.rules[action.key];
+    const next = { ...state.rules };
+    if (current === action.value) {
+      delete next[action.key];
+    } else {
+      (next as Record<string, unknown>)[action.key] = action.value;
+    }
+    return { ...state, rules: next };
+  },
+  notes: (state, action) => ({
+    ...state,
+    rules: { ...state.rules, notes: action.value },
+  }),
+  reset: (state) => ({ ...state, rules: {} }),
+  savedNotice: (state, action) => ({
+    ...state,
+    savedNotice: action.value,
+  }),
+};
+
+function draftReducer(state: DraftState, action: DraftAction): DraftState {
+  const handler = draftHandlers[action.type] as (
+    state: DraftState,
+    action: DraftAction
+  ) => DraftState;
+  return handler(state, action);
+}
+
 function isEqual(a: DesignRules, b: DesignRules): boolean {
   return (
     a.color === b.color &&
@@ -90,8 +136,10 @@ function isEqual(a: DesignRules, b: DesignRules): boolean {
 // 開いている間だけマウントされる前提（page.tsx 側で制御）なので、
 // props から初期化する。
 export function DesignRulesDialog({ onClose, value, onSave }: Props) {
-  const [rules, setRules] = useState<DesignRules>(value ?? {});
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [draft, dispatchDraft] = useReducer(draftReducer, {
+    rules: value ?? {},
+    savedNotice: false,
+  });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -102,28 +150,22 @@ export function DesignRulesDialog({ onClose, value, onSave }: Props) {
   }, [onClose]);
 
   function pick(key: keyof DesignRules, val: string) {
-    setRules((prev) => {
-      // 同じ値を再度押したら解除（未指定に戻す）
-      const current = prev[key];
-      const next = { ...prev };
-      if (current === val) {
-        delete next[key];
-      } else {
-        (next as Record<string, unknown>)[key] = val;
-      }
-      return next;
-    });
+    dispatchDraft({ type: "pick", key, value: val });
   }
 
   function handleSave() {
     // notes は空文字なら落とす
-    const cleaned: DesignRules = { ...rules };
+    const cleaned: DesignRules = { ...draft.rules };
     if (!cleaned.notes?.trim()) delete cleaned.notes;
     onSave(cleaned);
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 1500);
+    dispatchDraft({ type: "savedNotice", value: true });
+    setTimeout(
+      () => dispatchDraft({ type: "savedNotice", value: false }),
+      1500
+    );
   }
 
+  const rules = draft.rules;
   const dirty = !isEqual(rules, value ?? {});
 
   return (
@@ -241,7 +283,10 @@ export function DesignRulesDialog({ onClose, value, onSave }: Props) {
             <textarea
               value={rules.notes ?? ""}
               onChange={(e) =>
-                setRules((prev) => ({ ...prev, notes: e.target.value }))
+                dispatchDraft({
+                  type: "notes",
+                  value: (e.target as HTMLTextAreaElement).value,
+                })
               }
               rows={3}
               maxLength={2000}
@@ -252,12 +297,16 @@ export function DesignRulesDialog({ onClose, value, onSave }: Props) {
         </div>
 
         <footer className="px-5 py-3 border-t border-slate-100 flex items-center gap-2 shrink-0">
-          <Button variant="ghost" size="sm" onClick={() => setRules({})}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => dispatchDraft({ type: "reset" })}
+          >
             <RotateCcw className="w-3.5 h-3.5" />
             リセット
           </Button>
           <div className="ml-auto flex items-center gap-2">
-            {savedNotice && (
+            {draft.savedNotice && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                 <Check className="w-3.5 h-3.5" />
                 保存しました

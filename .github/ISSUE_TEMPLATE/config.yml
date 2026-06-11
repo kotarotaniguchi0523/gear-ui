@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability / セキュリティ脆弱性
-    url: https://github.com/lance-digital/gear-ui/blob/main/SECURITY.md
+    url: https://github.com/kotarotaniguchi0523/gear-ui/blob/main/SECURITY.md
     about: 脆弱性は公開 Issue ではなく SECURITY.md の手順で報告してください / Report vulnerabilities privately via SECURITY.md.
   - name: Questions / 質問・相談
-    url: https://github.com/lance-digital/gear-ui/discussions
+    url: https://github.com/kotarotaniguchi0523/gear-ui/discussions
     about: 使い方の質問やアイデアの相談は Discussions へ / Ask usage questions in Discussions.

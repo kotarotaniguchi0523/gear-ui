@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Download, FileSpreadsheet, FileType } from "lucide-react";
+import { useActionState, useEffect, useRef } from "hono/jsx";
+import { Download, FileSpreadsheet, FileType } from "@/components/ui/icon";
 
 export function ExportMenu({
   onMarkdown,
@@ -8,13 +8,19 @@ export function ExportMenu({
   onMarkdown: () => void;
   onXlsx: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, applyMenuAction] = useActionState<boolean>(
+    (current: boolean, action: "toggle" | "close") =>
+      action === "toggle" ? !current : false,
+    false
+  );
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     const onClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        applyMenuAction("close");
+      }
     };
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
@@ -23,7 +29,7 @@ export function ExportMenu({
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => applyMenuAction("toggle")}
         className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-slate-200"
         title="定義書を Markdown / Excel で書き出す"
       >
@@ -35,7 +41,7 @@ export function ExportMenu({
           <button
             onClick={() => {
               onMarkdown();
-              setOpen(false);
+              applyMenuAction("close");
             }}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
           >
@@ -45,7 +51,7 @@ export function ExportMenu({
           <button
             onClick={() => {
               onXlsx();
-              setOpen(false);
+              applyMenuAction("close");
             }}
             className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
           >

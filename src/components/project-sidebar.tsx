@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useActionState } from "hono/jsx";
 import {
   Plus,
   Trash2,
@@ -11,7 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-} from "lucide-react";
+} from "@/components/ui/icon";
 import type { ProjectSummary } from "@/hooks/use-projects";
 
 interface Props {
@@ -126,32 +124,48 @@ function ProjectRow({
   onRename: (name: string) => void;
   onDelete: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(project.name);
+  type EditState = { editing: boolean; draft: string };
+  type EditAction =
+    | { type: "start"; name: string }
+    | { type: "change"; draft: string }
+    | { type: "cancel"; name: string }
+    | { type: "finish" };
+
+  const [edit, dispatchEdit] = useActionState<EditState>(
+    (state: EditState, action: EditAction): EditState => {
+      if (action.type === "start") return { editing: true, draft: action.name };
+      if (action.type === "change") return { ...state, draft: action.draft };
+      if (action.type === "cancel") return { editing: false, draft: action.name };
+      return { ...state, editing: false };
+    },
+    { editing: false, draft: project.name }
+  );
 
   function commit() {
-    const next = draft.trim();
+    const next = edit.draft.trim();
     if (next && next !== project.name) {
       onRename(next);
-    } else {
-      setDraft(project.name);
     }
-    setEditing(false);
+    dispatchEdit({ type: "finish" });
   }
 
-  if (editing) {
+  if (edit.editing) {
     return (
       <li className="px-2 py-1.5 rounded-md bg-blue-50 flex items-center gap-1">
         <input
           autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          value={edit.draft}
+          onChange={(e) =>
+            dispatchEdit({
+              type: "change",
+              draft: (e.target as HTMLInputElement).value,
+            })
+          }
           onKeyDown={(e) => {
-            if (e.nativeEvent.isComposing) return;
+            if (e.isComposing) return;
             if (e.key === "Enter") commit();
             if (e.key === "Escape") {
-              setDraft(project.name);
-              setEditing(false);
+              dispatchEdit({ type: "cancel", name: project.name });
             }
           }}
           className="flex-1 min-w-0 text-xs bg-white border border-blue-300 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
@@ -164,8 +178,7 @@ function ProjectRow({
         </button>
         <button
           onClick={() => {
-            setDraft(project.name);
-            setEditing(false);
+            dispatchEdit({ type: "cancel", name: project.name });
           }}
           className="p-1 text-slate-400 hover:bg-slate-100 rounded"
         >
@@ -205,7 +218,7 @@ function ProjectRow({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setEditing(true);
+              dispatchEdit({ type: "start", name: project.name });
             }}
             className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded"
             title="名前を変更"

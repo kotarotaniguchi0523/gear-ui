@@ -15,7 +15,7 @@
 
 行動規範に反する言動を見聞きした場合は、メンテナまでご連絡ください:
 
-- **gi-support@lance-digital.com**
+- **r02takako@outlook.jp**
 
 報告は秘密として扱い、誠実かつ公正に対応します。
 
@@ -37,7 +37,7 @@ please read the full text at that link.
 
 If you witness or experience behavior that violates this code, contact the maintainer:
 
-- **gi-support@lance-digital.com**
+- **r02takako@outlook.jp**
 
 Reports are handled confidentially, fairly, and in good faith.
 

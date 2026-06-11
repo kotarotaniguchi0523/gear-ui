@@ -1,19 +1,21 @@
-import next from "eslint-config-next";
+import js from "@eslint/js";
+import tseslint from "typescript-eslint";
 
-// Next.js 16 removed the built-in `next lint` command in favour of the ESLint
-// CLI with flat config. `eslint-config-next` exports a ready-made flat config
-// array (Core Web Vitals + TypeScript rules).
-const eslintConfig = [
-  ...next,
+export default [
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    ignores: [
-      ".next/**",
-      "out/**",
-      "dist/**",
-      "node_modules/**",
-      "next-env.d.ts",
-    ],
+    ignores: ["dist/**", "node_modules/**"],
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.json",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
   },
 ];
-
-export default eslintConfig;
