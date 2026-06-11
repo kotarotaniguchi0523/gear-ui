@@ -776,6 +776,7 @@ export default function Page() {
         <SettingsDialog
           onClose={pageActions.closeSettings}
           available={canGenerate}
+          onRefresh={() => refreshCodexStatus(new FormData())}
         />
       )}
 

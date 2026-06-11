@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 interface Props {
   onClose: () => void;
   available: boolean;
+  onRefresh: () => void;
 }
 
 async function markChecked(): Promise<boolean> {
@@ -13,7 +14,7 @@ async function markChecked(): Promise<boolean> {
 
 // Rendered only while the dialog is open (see Page), so mounting == opening:
 // the form fields initialize fresh from props on every open, no reset effect.
-export function SettingsDialog({ onClose, available }: Props) {
+export function SettingsDialog({ onClose, available, onRefresh }: Props) {
   const [checked, confirmChecked] = useActionState<boolean>(markChecked, false);
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -78,7 +79,13 @@ export function SettingsDialog({ onClose, available }: Props) {
             <Button variant="outline" size="sm" onClick={onClose}>
               閉じる
             </Button>
-            <Button size="sm" onClick={() => confirmChecked(new FormData())}>
+            <Button
+              size="sm"
+              onClick={() => {
+                onRefresh();
+                confirmChecked(new FormData());
+              }}
+            >
               状態を確認
             </Button>
           </div>

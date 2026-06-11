@@ -30,4 +30,4 @@ Recent history uses concise Japanese change labels such as `（Mod）READMEを�
 
 ## Security & Configuration Tips
 
-Do not commit Codex auth files or local databases. Generation uses the server user's existing `codex login` session; do not reintroduce browser API-key storage. Follow `SECURITY.md` for vulnerability reports and key-handling expectations.
+Do not commit Codex auth files or local databases. Generation uses the server user's existing `codex login` session; do not reintroduce browser API-key storage. Follow `SECURITY.md` for vulnerability reports and key-handling expectations. Keep dependency automation in `renovate.json`; do not reintroduce `.github/dependabot.yml` for scheduled dependency PRs.

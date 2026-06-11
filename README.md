@@ -100,6 +100,8 @@ This repository uses pnpm project settings in `pnpm-workspace.yaml` for install-
 
 - `pnpm security:pmsec` runs `pmsec` for the npm/pnpm tools relevant to this repository and verifies the pnpm project settings.
 - Lefthook runs `pnpm lint:actions` as a pre-commit check for GitHub Actions workflows.
+- CI runs GitHub Dependency Review on pull requests and fails dependency changes with high-or-higher vulnerability severity.
+- Renovate is configured in `renovate.json` for dependency and vulnerability update PRs. Dependabot remains enabled for vulnerability alerts through GitHub repository settings, but this repository intentionally does not include `.github/dependabot.yml` so Dependabot version updates do not create PRs.
 
 ## Design Tokens
 
