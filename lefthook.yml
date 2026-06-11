@@ -1,0 +1,5 @@
+pre-commit:
+  commands:
+    github-actions:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: pnpm lint:actions

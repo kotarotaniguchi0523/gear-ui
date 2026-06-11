@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # npm 依存パッケージの更新 PR を毎週作成
+  # pnpm-lock.yaml / package.json の依存パッケージ更新 PR を毎週作成
   - package-ecosystem: npm
     directory: "/"
     schedule:

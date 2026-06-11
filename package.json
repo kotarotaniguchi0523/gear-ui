@@ -35,9 +35,11 @@
     "build": "vite build && tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "lint": "eslint",
+    "lint:actions": "go run github.com/sisaku-security/sisakulint/cmd/sisakulint@14af18f3928e5f53d4c6e9b492b3062fea12c941",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.2.7",
@@ -57,6 +59,7 @@
     "@types/node": "^25",
     "concurrently": "^9.2.1",
     "eslint": "^9.39.4",
+    "lefthook": "^2.0.0",
     "tailwindcss": "^4",
     "tsc-alias": "^1.8.17",
     "tsx": "^4.21.0",

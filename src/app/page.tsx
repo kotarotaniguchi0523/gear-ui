@@ -299,7 +299,7 @@ export default function Page() {
             {canGenerate && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
           </button>
           <a
-            href="https://github.com/lance-digital/gear-ui"
+            href="https://github.com/kotarotaniguchi0523/gear-ui"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
