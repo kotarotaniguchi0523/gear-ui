@@ -89,6 +89,7 @@ pnpm lint       # ESLint
 pnpm test       # Vitest
 pnpm build      # Vite client + compiled Hono server
 pnpm start      # serve the production build
+pnpm security:pmsec # check npm/pnpm install hardening
 ```
 
 Unit tests cover schemas, prompt builders, repository behavior, export helpers, preview helpers, and response extraction. Tests do not require Codex login or network access.

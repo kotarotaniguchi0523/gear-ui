@@ -24,6 +24,7 @@
 - [ ] `pnpm test` が通る / passes
 - [ ] `pnpm lint` が通る / passes
 - [ ] `pnpm build` が通る / passes
+- [ ] `pnpm security:pmsec` が通る / passes
 - [ ] 必要に応じてテストを追加・更新した / Added or updated tests where relevant
 - [ ] 必要に応じてドキュメント（README 等）を更新した / Updated docs where relevant
 

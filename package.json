@@ -36,6 +36,7 @@
     "start": "node dist/server/index.js",
     "lint": "eslint",
     "lint:actions": "go run github.com/sisaku-security/sisakulint/cmd/sisakulint@14af18f3928e5f53d4c6e9b492b3062fea12c941",
+    "security:pmsec": "npx --yes pmsec --check --tool npm,pnpm && test \"$(pnpm config get minimum-release-age --location project)\" = \"1440\" && test \"$(pnpm config get trust-policy --location project)\" = \"no-downgrade\" && test \"$(pnpm config get block-exotic-subdeps --location project)\" = \"true\" && test \"$(pnpm config get strict-dep-builds --location project)\" = \"true\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -14,6 +14,7 @@ This is a Hono + Vite project written in TypeScript. The main UI lives in `src/a
 - `pnpm lint`: run ESLint.
 - `pnpm test`: run the Vitest suite once.
 - `pnpm test:watch`: run Vitest in watch mode.
+- `pnpm security:pmsec`: verify npm/pnpm install-time hardening for this repository.
 
 ## Coding Style & Naming Conventions
 
@@ -21,7 +22,7 @@ Use TypeScript, Hono, and Hono JSX DOM. Match nearby code for formatting, commen
 
 ## Testing Guidelines
 
-Vitest is the test framework. Add or update colocated tests for new logic, schema changes, prompt builders, parsing, exports, and repository behavior. The current test suite is designed to run without Codex login or network access. Before submitting, run `pnpm typecheck`, `pnpm test`, `pnpm lint`, and `pnpm build`.
+Vitest is the test framework. Add or update colocated tests for new logic, schema changes, prompt builders, parsing, exports, and repository behavior. The current test suite is designed to run without Codex login or network access. Before submitting, run `pnpm typecheck`, `pnpm test`, `pnpm lint`, `pnpm build`, and `pnpm security:pmsec`.
 
 ## Commit & Pull Request Guidelines
 

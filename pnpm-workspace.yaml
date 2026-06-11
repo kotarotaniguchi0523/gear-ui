@@ -3,3 +3,7 @@ allowBuilds:
   esbuild: true
   lefthook: true
   sharp: true
+blockExoticSubdeps: true
+minimumReleaseAge: 1440
+strictDepBuilds: true
+trustPolicy: no-downgrade
