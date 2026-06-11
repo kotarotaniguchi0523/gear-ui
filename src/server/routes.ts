@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -47,6 +49,20 @@ import {
 
 function wantsEventStream(request: Request): boolean {
   return request.headers.get("accept")?.includes("text/event-stream") ?? false;
+}
+
+export function codexAuthStatus(home = join(homedir(), ".codex")) {
+  const authFiles = ["auth.json", ".credentials.json"].map((name) =>
+    join(home, name)
+  );
+  const available = authFiles.some((path) => existsSync(path));
+  return {
+    available,
+    auth: "codex-login",
+    message: available
+      ? "Codex SDK can use the server user's existing Codex login session."
+      : "Run `codex login` as the server process user before using generation features.",
+  };
 }
 
 type Emit = (event: string, data: unknown) => Promise<void>;
@@ -127,13 +143,7 @@ type Finalized =
   | { ok: false; status: number; body: Record<string, unknown> };
 
 const api = new Hono()
-  .get("/codex/status", (c) =>
-    c.json({
-      available: true,
-      auth: "codex-login",
-      message: "Codex SDK uses the server user's existing Codex login session.",
-    })
-  )
+  .get("/codex/status", (c) => c.json(codexAuthStatus()))
   .get("/projects", (c) => c.json({ projects: listProjects() }))
   .post("/projects", async (c) => {
     const parsed = projectCreateSchema.safeParse(await readJson(c));

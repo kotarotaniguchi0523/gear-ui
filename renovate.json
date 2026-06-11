@@ -1,0 +1,75 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":timezone(Asia/Tokyo)",
+    ":labels(dependencies)",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests",
+    "group:monorepos",
+    "group:recommended"
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Dependency Dashboard",
+  "internalChecksFilter": "strict",
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 5am on monday"]
+  },
+  "minimumReleaseAge": "7 days",
+  "osvVulnerabilityAlerts": true,
+  "pinDigests": true,
+  "platformAutomerge": true,
+  "prConcurrentLimit": 5,
+  "rebaseWhen": "behind-base-branch",
+  "schedule": ["before 5am every weekday"],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["dependencies", "security"],
+    "minimumReleaseAge": "0 days"
+  },
+  "packageRules": [
+    {
+      "description": "Automerge low-risk patch, pin, and digest updates after stability checks.",
+      "matchUpdateTypes": ["patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "Security updates can run immediately and skip the normal release-age delay.",
+      "matchCategories": ["security"],
+      "schedule": ["at any time"],
+      "minimumReleaseAge": "0 days",
+      "labels": ["dependencies", "security"],
+      "prPriority": 10
+    },
+    {
+      "description": "Major updates require manual approval via the Dependency Dashboard.",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
+    },
+    {
+      "description": "Codex SDK updates affect the generation backend and require manual review.",
+      "matchPackageNames": ["@openai/codex-sdk"],
+      "dependencyDashboardApproval": true,
+      "automerge": false,
+      "labels": ["dependencies", "codex"]
+    },
+    {
+      "description": "Group Hono runtime packages.",
+      "matchPackageNames": ["hono", "/^@hono\\//"],
+      "groupName": "hono"
+    },
+    {
+      "description": "Group Vite and Vitest packages.",
+      "matchPackageNames": ["vite", "vitest", "/^@vitejs\\//", "/^@vitest\\//"],
+      "groupName": "vite-vitest"
+    },
+    {
+      "description": "Group GitHub Actions updates and keep commit SHA pinning.",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
+    }
+  ]
+}
