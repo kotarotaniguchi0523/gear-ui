@@ -30,9 +30,22 @@
   "engines": {
     "node": ">=20.9.0"
   },
+  "bin": {
+    "gear-ui": "./bin/gear-ui.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "public",
+    "scripts/clean-dist.mjs",
+    "scripts/prepare.mjs",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "scripts": {
     "dev": "concurrently -n server,client \"tsx watch src/server/index.ts\" \"vite --host 0.0.0.0 --port 5173\"",
-    "build": "vite build && tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json",
+    "build": "node scripts/clean-dist.mjs && vite build && tsc -p tsconfig.server.json && tsc-alias -p tsconfig.server.json",
     "start": "node dist/server/index.js",
     "lint": "eslint",
     "lint:actions": "go run github.com/sisaku-security/sisakulint/cmd/sisakulint@14af18f3928e5f53d4c6e9b492b3062fea12c941",
@@ -40,7 +53,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepare": "lefthook install"
+    "prepack": "pnpm build",
+    "prepare": "node scripts/prepare.mjs"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.2.7",

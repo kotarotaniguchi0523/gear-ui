@@ -48,6 +48,40 @@ cp .env.example .env.local
 # edit PORT or UI_AI_CREATOR_DB_PATH if needed
 ```
 
+## Local Tool Install
+
+For private personal use without publishing to npm, build a local package tarball
+and install it globally with pnpm:
+
+```bash
+pnpm install
+pnpm pack
+pnpm add -g ./gear-ui-0.1.0.tgz
+gear-ui
+```
+
+Then open `http://127.0.0.1:3000`.
+
+The package remains `"private": true`, so `npm publish` is blocked. `pnpm pack`
+still creates an installable tarball for your own machine or a GitHub Release.
+
+To install from a release asset later, use the tarball URL:
+
+```bash
+pnpm add -g https://github.com/kotarotaniguchi0523/gear-ui/releases/download/v0.1.0/gear-ui-0.1.0.tgz
+gear-ui
+```
+
+Generation still uses the OS user's existing Codex session. Run this once before
+starting `gear-ui`:
+
+```bash
+codex login
+```
+
+The app does not provide a browser login flow and does not store browser-side API
+keys.
+
 ## Usage
 
 1. Enter the system requirements in the left pane.
