@@ -26,9 +26,15 @@ pnpm typecheck
 pnpm test
 pnpm lint
 pnpm build
+pnpm security:pmsec
 ```
 
 The unit test suite does not require Codex login, API keys, or network access.
+`pnpm security:pmsec` checks npm/pnpm install-time hardening for this repository. Full `npx pmsec` may also report tools that are not part of this repo, such as Bundler; those are host-level findings.
+
+## Git Hooks
+
+Lefthook is installed by `pnpm install` via the `prepare` script. The pre-commit hook runs `pnpm lint:actions` for changed GitHub Actions workflows, which invokes `sisakulint`.
 
 ## Pull Request Flow
 
@@ -44,6 +50,7 @@ The unit test suite does not require Codex login, API keys, or network access.
 - Keep server-only code out of client bundles; Codex SDK usage belongs behind `src/lib/codex.ts` and Hono routes.
 - Keep schemas in `src/lib/schemas.ts` aligned with prompt output.
 - Prefer colocated tests named `*.test.ts`.
+- Keep pnpm project hardening in `pnpm-workspace.yaml`; do not add pnpm settings to `.npmrc`.
 - Do not reintroduce browser API-key storage or provider-specific SDKs unless the project direction changes.
 
 ## Contributor License Agreement

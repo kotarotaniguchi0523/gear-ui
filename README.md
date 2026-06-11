@@ -89,10 +89,17 @@ pnpm lint       # ESLint
 pnpm test       # Vitest
 pnpm build      # Vite client + compiled Hono server
 pnpm start      # serve the production build
-pnpm security:pmsec # check npm/pnpm install hardening
+pnpm security:pmsec # npm/pnpm install hardening check
 ```
 
 Unit tests cover schemas, prompt builders, repository behavior, export helpers, preview helpers, and response extraction. Tests do not require Codex login or network access.
+
+## Supply-Chain Hardening
+
+This repository uses pnpm project settings in `pnpm-workspace.yaml` for install-time hardening. Do not move pnpm settings into `.npmrc`; pnpm v11 reads project settings from `pnpm-workspace.yaml`.
+
+- `pnpm security:pmsec` runs `pmsec` for the npm/pnpm tools relevant to this repository and verifies the pnpm project settings.
+- Lefthook runs `pnpm lint:actions` as a pre-commit check for GitHub Actions workflows.
 
 ## Design Tokens
 
