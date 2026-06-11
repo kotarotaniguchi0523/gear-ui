@@ -15,6 +15,12 @@ Please report vulnerabilities privately through GitHub Security Advisories or th
 - Codex authentication comes from the server process user's existing Codex login session.
 - Treat Codex auth files under `CODEX_HOME` or `~/.codex` as secrets. Do not commit them or paste them into issues, logs, or chat.
 
+## Dependency Installation
+
+- Use pnpm, not npm, for dependency installation in this repository.
+- Run `pnpm security:pmsec` before submitting changes that affect dependencies or package manager configuration.
+- pnpm project hardening is stored in `pnpm-workspace.yaml`; do not add pnpm settings to `.npmrc`.
+
 ## Generated HTML
 
 Generated mocks are rendered in a sandboxed iframe. Keep that boundary intact when changing preview behavior.
